@@ -9,14 +9,21 @@ import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.boot.web.reactive.context.AnnotationConfigReactiveWebApplicationContext;
 import org.springframework.context.ApplicationContext;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import javax.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
 
-@Service
+@Component
 public class GetWebmFrom2ch {
     private final ApplicationContext applicationContext;
     private final RestTemplate restTemplate;
@@ -44,8 +51,17 @@ public class GetWebmFrom2ch {
         });
         return ListThreads;
     }
+
     public void CheckThread(Thread thread) {
-        LinkedHashMap threadJson = restTemplate.getForObject(host2ch + "/b/res/" + thread.getIdThread() + ".json", LinkedHashMap.class);
+        LinkedHashMap threadJson;
+        try {
+            threadJson = restTemplate.getForObject(host2ch + "/b/res/" + thread.getIdThread() + ".json", LinkedHashMap.class);
+        }
+        catch (HttpClientErrorException.NotFound exception){
+            log.warn("404 "+exception);
+            ListThreads.remove(thread);
+            return;
+        }
         //Threads->Posts
         ArrayList<LinkedHashMap> threads = (ArrayList<LinkedHashMap>) threadJson.get("threads");
         LinkedHashMap to1 = threads.get(0);
@@ -53,38 +69,52 @@ public class GetWebmFrom2ch {
         posts.forEach(
                 post -> {
                     ArrayList<String> urlFiles = new ArrayList<>();
-                    int numMessage = (int)post.get("num");
-                    if ( numMessage > thread.getLastCheckedMessage()) {
+                    int numMessage = (int) post.get("num");
+                    if (numMessage > thread.getLastCheckedMessage()) {
                         ArrayList<LinkedHashMap> filesList = (ArrayList<LinkedHashMap>) post.get("files");
-                        filesList.forEach(file->{
+                        filesList.forEach(file -> {
                             //check that this a video file
                             //type mp4 - 10, webm - 6
 
-                            if ((int)file.get("type")==10)
-                            {
-                                urlFiles.add(host2ch+file.get("path"));
+                            if ((int) file.get("type") == 10) {
+                                urlFiles.add(host2ch + file.get("path"));
                             }
                         });
 
 
                     }
 
-                    if (!urlFiles.isEmpty()){
-                    Message message = new Message();
-                    message.ThreadName = thread.getTitle();
-                    message.MessageURL = host2ch + "/b/res/" + thread.getIdThread() + ".html" + "#"+numMessage;
-                    message.URLVideos = urlFiles;
-                    botBean.messageArrayDeque.add(message);
+                    if (!urlFiles.isEmpty()) {
+                        Message message = new Message();
+                        message.ThreadName = thread.getTitle();
+                        message.MessageURL = host2ch + "/b/res/" + thread.getIdThread() + ".html" + "#" + numMessage;
+                        message.URLVideos = urlFiles;
+                        botBean.messageArrayDeque.add(message);
                     }
                 }
         );
     }
+    public void Stop(){
 
-    //@Scheduled(fixedRate = 20000)
-    //@PostConstruct
+    }
+
+    Timer timer;
+
+    //@Scheduled(fixedRate = 10 * 60000)
+    @PostConstruct
     public void UpdateThreads() {
-        ListThreads.forEach(thread -> CheckThread(thread));
-        log.info("Scheduled task!");
+        if (timer == null) {
+            log.info("Scheduled task!");
+            timer = new Timer();
+            ListThreads.forEach(thread -> {
+                timer.schedule(new TimerTask() {
+                    @Override
+                    public void run() {
+                        CheckThread(thread);
+                    }
+                }, 0, 5 * 60000);
 
+            });
+        }
     }
 }

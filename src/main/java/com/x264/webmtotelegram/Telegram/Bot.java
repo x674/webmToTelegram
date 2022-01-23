@@ -17,6 +17,7 @@ import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.MessageEntity;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.media.InputMedia;
+import org.telegram.telegrambots.meta.api.objects.media.InputMediaPhoto;
 import org.telegram.telegrambots.meta.api.objects.media.InputMediaVideo;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
@@ -26,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 @Component
 public class Bot extends TelegramLongPollingBot {
@@ -62,13 +64,7 @@ public class Bot extends TelegramLongPollingBot {
         if (update.hasChannelPost()) {
             getWebmFrom2ch.UpdateThreads();
             SendMessage sendMessage = new SendMessage();
-            MessageEntity messageEntity = new MessageEntity();
-            messageEntity.setText("link");
-            messageEntity.setUrl("example.com");
-            sendMessage.setEntities(Arrays.asList(messageEntity));
-//            sendMessage.enableMarkdown(true);
-//            //sendMessage.setParseMode("[inline URL](http://www.example.com/)");
-            sendMessage.setText("new line");
+            sendMessage.setText("UpdateThreads started");
             sendMessage.setChatId(update.getChannelPost().getChatId().toString());
             try {
                 execute(sendMessage);
@@ -91,13 +87,31 @@ public class Bot extends TelegramLongPollingBot {
 
     public ArrayDeque<Message> messageArrayDeque = new ArrayDeque<>();
 
-    private CompletableFuture completableSentMessage = new CompletableFuture();
+    private CompletableFuture completableSentMessage;
 
-    //@Scheduled(initialDelay = 5000)
-    private void AsyncSentMessages() {
-        if (!messageArrayDeque.isEmpty() && completableSentMessage.isDone()) {
-            completableSentMessage = executeAsync(sendMedia(messageArrayDeque.getLast()));
+    @Scheduled(fixedRate = 6000)
+    public void AsyncSentMessages() {
+        if (!messageArrayDeque.isEmpty())
+        {
+            Message message =messageArrayDeque.getFirst();
+            if (completableSentMessage == null) {
+                if (message.URLVideos.size() == 1)
+                    completableSentMessage = executeAsync(SendVideo(message));
+                else if (message.URLVideos.size() > 1)
+                    completableSentMessage = executeAsync(SendMediaGroup(message));
+                messageArrayDeque.remove(message);
+            }
+            else if (completableSentMessage.isDone()) {
+                if (message.URLVideos.size() == 1)
+                    completableSentMessage = executeAsync(SendVideo(message));
+                else if (message.URLVideos.size() > 1)
+                    completableSentMessage = executeAsync(SendMediaGroup(message));
+                messageArrayDeque.remove(message);
+            }
+
         }
+
+
     }
 
     private ArrayList<InputMedia> GetListInputMedia(List<String> listUrls) {
@@ -107,10 +121,31 @@ public class Bot extends TelegramLongPollingBot {
         return mediaArrayList;
     }
 
-    public SendMediaGroup sendMedia(Message message) {
-        var builder = SendMediaGroup.builder();
-        builder.medias(GetListInputMedia(message.URLVideos));
-        SendMediaGroup sendMediaGroup = builder.build();
+    public SendMediaGroup SendMediaGroup(Message message) {
+        SendMediaGroup sendMediaGroup = new SendMediaGroup();
+        sendMediaGroup.setChatId(chatId);
+        List<InputMedia> listMedia = message.URLVideos.stream().map(e->new InputMediaVideo(e)).collect(Collectors.toList());
+        listMedia.get(0).setCaption(message.MessageURL);
+//        var caption = new MessageEntity();
+//        caption.setOffset(0);
+//        caption.setUrl(message.MessageURL);
+//        caption.setText(message.ThreadName);
+//        listMedia.get(0).setCaptionEntities(Arrays.asList(caption));
+        sendMediaGroup.setMedias(listMedia);
         return sendMediaGroup;
+    }
+
+    public SendVideo SendVideo(Message message) {
+        SendVideo sendVideo = new SendVideo();
+        sendVideo.setCaption(message.MessageURL);
+//        var caption = new MessageEntity();
+//        caption.setOffset(0);
+//        caption.setLength(message.ThreadName.length());
+//        caption.setUrl(message.MessageURL);
+//        caption.setText(message.ThreadName);
+//        sendVideo.setCaptionEntities(Arrays.asList(caption));
+        sendVideo.setChatId(chatId);
+        sendVideo.setVideo(new InputFile(message.URLVideos.get(0)));
+        return sendVideo;
     }
 }
