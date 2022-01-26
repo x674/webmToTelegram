@@ -4,24 +4,16 @@ import com.x264.webmtotelegram.Telegram.Bot;
 import com.x264.webmtotelegram.Telegram.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.web.client.RestTemplateBuilder;
-import org.springframework.boot.web.reactive.context.AnnotationConfigReactiveWebApplicationContext;
 import org.springframework.context.ApplicationContext;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import javax.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 @Component
 public class GetWebmFrom2ch {
@@ -30,11 +22,13 @@ public class GetWebmFrom2ch {
     private static final String host2ch = "https://2ch.hk";
     private static final Logger log = LoggerFactory.getLogger(GetWebmFrom2ch.class);
     private Bot botBean;
+    private Converter converter;
     private ArrayList<Thread> ListThreads = new ArrayList<>();
 
     public GetWebmFrom2ch(RestTemplateBuilder restTemplateBuilder, ApplicationContext applicationContext) {
         this.applicationContext = applicationContext;
         botBean = (Bot) applicationContext.getBean("bot");
+        converter = (Converter) applicationContext.getBean("converter");
         restTemplate = restTemplateBuilder.build();
 
     }
@@ -56,9 +50,8 @@ public class GetWebmFrom2ch {
         LinkedHashMap threadJson;
         try {
             threadJson = restTemplate.getForObject(host2ch + "/b/res/" + thread.getIdThread() + ".json", LinkedHashMap.class);
-        }
-        catch (HttpClientErrorException.NotFound exception){
-            log.warn("404 "+exception);
+        } catch (HttpClientErrorException.NotFound exception) {
+            log.warn("404 " + exception);
             ListThreads.remove(thread);
             return;
         }
@@ -76,8 +69,20 @@ public class GetWebmFrom2ch {
                             //check that this a video file
                             //type mp4 - 10, webm - 6
 
-                            if ((int) file.get("type") == 10) {
-                                urlFiles.add(host2ch + file.get("path"));
+                            int fileType = (int) file.get("type");
+                            switch (fileType){
+                                case 6:
+                                {
+                                    //convert webm to mp4
+                                    var filePath = converter.ConvertWebmToMP4(host2ch + file.get("path"));
+                                    urlFiles.add(filePath);
+
+                                }
+                                //mp4
+                                case 10:
+                                {
+                                    urlFiles.add(host2ch + file.get("path"));
+                                }
                             }
                         });
 
@@ -94,27 +99,20 @@ public class GetWebmFrom2ch {
                 }
         );
     }
-    public void Stop(){
+
+    public void Stop() {
 
     }
-
-    Timer timer;
-
     //@Scheduled(fixedRate = 10 * 60000)
-    @PostConstruct
+    //@PostConstruct
     public void UpdateThreads() {
-        if (timer == null) {
-            log.info("Scheduled task!");
-            timer = new Timer();
-            ListThreads.forEach(thread -> {
-                timer.schedule(new TimerTask() {
-                    @Override
-                    public void run() {
-                        CheckThread(thread);
-                    }
-                }, 0, 5 * 60000);
-
-            });
-        }
+        ListThreads.forEach(thread -> {
+            CheckThread(thread);
+            try {
+                TimeUnit.SECONDS.sleep(90);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        });
     }
 }
