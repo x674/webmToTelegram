@@ -22,6 +22,7 @@ import org.telegram.telegrambots.meta.api.objects.media.InputMediaVideo;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
+import java.io.InputStream;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -134,10 +135,16 @@ public class Bot extends TelegramLongPollingBot {
         sendMediaGroup.setMedias(listMedia);
         return sendMediaGroup;
     }
-
+    public SendVideo SendVideo(InputStream mediaStream, String filename) {
+        SendVideo video = new SendVideo();
+        InputFile inputFile = new InputFile(mediaStream,filename);
+        video.setVideo(inputFile);
+        return null;
+    }
     public SendVideo SendVideo(Message message) {
         SendVideo sendVideo = new SendVideo();
         sendVideo.setCaption(message.MessageURL);
+        sendVideo.setSupportsStreaming(true);
 //        var caption = new MessageEntity();
 //        caption.setOffset(0);
 //        caption.setLength(message.ThreadName.length());
