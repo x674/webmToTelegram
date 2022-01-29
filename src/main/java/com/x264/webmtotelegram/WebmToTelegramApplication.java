@@ -22,7 +22,8 @@ public class WebmToTelegramApplication implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        var path =new Converter().ConvertWebmToMP4("https://2ch.hk/b/src/262044424/16431863491570.webm");
-        log.info("CONVERTED TO "+ path);
+        //var path =new Converter().ConvertWebmToMP4("https://2ch.hk/b/src/262044424/16431863491570.webm");
+        //log.info("CONVERTED TO "+ path);
+        log.info("Start");
     }
 }

@@ -1,7 +1,7 @@
 package com.x264.webmtotelegram.ImageBoard;
 
 import com.x264.webmtotelegram.Telegram.Bot;
-import com.x264.webmtotelegram.Telegram.Message;
+import com.x264.webmtotelegram.Telegram.TelegramPost;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.web.client.RestTemplateBuilder;
@@ -13,6 +13,7 @@ import org.springframework.web.client.RestTemplate;
 import javax.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 @Component
@@ -30,10 +31,10 @@ public class GetWebmFrom2ch {
         botBean = (Bot) applicationContext.getBean("bot");
         converter = (Converter) applicationContext.getBean("converter");
         restTemplate = restTemplateBuilder.build();
+        GetListThreads();
 
     }
 
-    @PostConstruct
     public ArrayList<Thread> GetListThreads() {
         LinkedHashMap catalog = this.restTemplate.getForObject(host2ch + "/b/catalog.json", LinkedHashMap.class);
         ArrayList<LinkedHashMap> arrayThreads = (ArrayList) catalog.get("threads");
@@ -47,6 +48,7 @@ public class GetWebmFrom2ch {
     }
 
     public void CheckThread(Thread thread) {
+        log.info("Check thread " +thread.getTitle());
         LinkedHashMap threadJson;
         try {
             threadJson = restTemplate.getForObject(host2ch + "/b/res/" + thread.getIdThread() + ".json", LinkedHashMap.class);
@@ -68,21 +70,13 @@ public class GetWebmFrom2ch {
                         filesList.forEach(file -> {
                             //check that this a video file
                             //type mp4 - 10, webm - 6
-
-                            int fileType = (int) file.get("type");
-                            switch (fileType){
-                                case 6:
-                                {
-                                    //convert webm to mp4
-                                    var filePath = converter.ConvertWebmToMP4(host2ch + file.get("path"));
-                                    urlFiles.add(filePath);
-
-                                }
-                                //mp4
-                                case 10:
-                                {
-                                    urlFiles.add(host2ch + file.get("path"));
-                                }
+                            String fileType = (String) file.get("name");
+                            if (fileType.contains("mp4")){
+                                urlFiles.add(host2ch + file.get("path"));
+                            }
+                            else if (fileType.contains("webm")){
+                                var filePath = converter.ConvertWebmToMP4(host2ch + file.get("path"));
+                                urlFiles.add(filePath);
                             }
                         });
 
@@ -90,29 +84,32 @@ public class GetWebmFrom2ch {
                     }
 
                     if (!urlFiles.isEmpty()) {
-                        Message message = new Message();
-                        message.ThreadName = thread.getTitle();
-                        message.MessageURL = host2ch + "/b/res/" + thread.getIdThread() + ".html" + "#" + numMessage;
-                        message.URLVideos = urlFiles;
-                        botBean.messageArrayDeque.add(message);
+                        TelegramPost telegramPost = new TelegramPost();
+                        telegramPost.ThreadName = thread.getTitle();
+                        telegramPost.MessageURL = host2ch + "/b/res/" + thread.getIdThread() + ".html" + "#" + numMessage;
+                        telegramPost.URLVideos = urlFiles;
+                        botBean.telegramPostArrayDeque.add(telegramPost);
                     }
                 }
         );
     }
 
-    public void Stop() {
-
-    }
     //@Scheduled(fixedRate = 10 * 60000)
-    //@PostConstruct
+
+    @PostConstruct
     public void UpdateThreads() {
-        ListThreads.forEach(thread -> {
-            CheckThread(thread);
-            try {
-                TimeUnit.SECONDS.sleep(90);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+        String finalThreadFilter = "фап";
+        ListThreads.stream().filter(e->e.getTitle().contains(finalThreadFilter)).forEach(thread -> {
+            CompletableFuture.runAsync(() -> {
+                CheckThread(thread);
+                try {
+                    TimeUnit.SECONDS.sleep(20);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+
+            });
+
         });
     }
 }

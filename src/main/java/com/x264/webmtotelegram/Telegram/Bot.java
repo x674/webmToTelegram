@@ -3,8 +3,6 @@ package com.x264.webmtotelegram.Telegram;
 import com.x264.webmtotelegram.ImageBoard.GetWebmFrom2ch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.context.ApplicationContext;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -14,18 +12,14 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
-import org.telegram.telegrambots.meta.api.objects.MessageEntity;
+import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.media.InputMedia;
-import org.telegram.telegrambots.meta.api.objects.media.InputMediaPhoto;
 import org.telegram.telegrambots.meta.api.objects.media.InputMediaVideo;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
-import java.io.InputStream;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -86,73 +80,71 @@ public class Bot extends TelegramLongPollingBot {
         }
     }
 
-    public ArrayDeque<Message> messageArrayDeque = new ArrayDeque<>();
+    public ArrayDeque<TelegramPost> telegramPostArrayDeque = new ArrayDeque<>();
 
     private CompletableFuture completableSentMessage;
 
-    @Scheduled(fixedRate = 6000)
+    @Scheduled(fixedRate = 4000)
     public void AsyncSentMessages() {
-        if (!messageArrayDeque.isEmpty())
-        {
-            Message message =messageArrayDeque.getFirst();
+        if (!telegramPostArrayDeque.isEmpty()) {
+            TelegramPost telegramPost = telegramPostArrayDeque.getFirst();
             if (completableSentMessage == null) {
-                if (message.URLVideos.size() == 1)
-                    completableSentMessage = executeAsync(SendVideo(message));
-                else if (message.URLVideos.size() > 1)
-                    completableSentMessage = executeAsync(SendMediaGroup(message));
-                messageArrayDeque.remove(message);
+                if (telegramPost.URLVideos.size() == 1)
+                    completableSentMessage = executeAsync(SendVideo(telegramPost));
+                else if (telegramPost.URLVideos.size() > 1) {
+                    List<Message> resultMessages;
+                    try {
+                        resultMessages = execute(SendMediaGroup(telegramPost));
+                        log.warn(resultMessages.toString());
+                    } catch (TelegramApiException e) {
+                        e.printStackTrace();
+                    }
+                }
+                telegramPostArrayDeque.remove(telegramPost);
+            } else if (completableSentMessage.isDone()) {
+                if (telegramPost.URLVideos.size() == 1)
+                    completableSentMessage = executeAsync(SendVideo(telegramPost));
+                else if (telegramPost.URLVideos.size() > 1)
+                    completableSentMessage = executeAsync(SendMediaGroup(telegramPost));
+                telegramPostArrayDeque.remove(telegramPost);
             }
-            else if (completableSentMessage.isDone()) {
-                if (message.URLVideos.size() == 1)
-                    completableSentMessage = executeAsync(SendVideo(message));
-                else if (message.URLVideos.size() > 1)
-                    completableSentMessage = executeAsync(SendMediaGroup(message));
-                messageArrayDeque.remove(message);
-            }
-
         }
-
-
     }
 
-    private ArrayList<InputMedia> GetListInputMedia(List<String> listUrls) {
-        ArrayList<InputMedia> mediaArrayList = new ArrayList<>();
-        listUrls.forEach(urlVideo ->
-                mediaArrayList.add(new InputMediaVideo(urlVideo)));
-        return mediaArrayList;
-    }
-
-    public SendMediaGroup SendMediaGroup(Message message) {
+    public SendMediaGroup SendMediaGroup(TelegramPost telegramPost) {
         SendMediaGroup sendMediaGroup = new SendMediaGroup();
         sendMediaGroup.setChatId(chatId);
-        List<InputMedia> listMedia = message.URLVideos.stream().map(e->new InputMediaVideo(e)).collect(Collectors.toList());
-        listMedia.get(0).setCaption(message.MessageURL);
-//        var caption = new MessageEntity();
-//        caption.setOffset(0);
-//        caption.setUrl(message.MessageURL);
-//        caption.setText(message.ThreadName);
-//        listMedia.get(0).setCaptionEntities(Arrays.asList(caption));
+        List<InputMedia> listMedia = telegramPost.URLVideos.stream().map(e -> {
+            var inputMediaVideo = new InputMediaVideo();
+            inputMediaVideo.setSupportsStreaming(true);
+            if (e.contains("http")) {
+                inputMediaVideo.setMedia(e);
+                return inputMediaVideo;
+            } else {
+                File mediaName = new File(e);
+                inputMediaVideo = new InputMediaVideo();
+                inputMediaVideo.setMedia(mediaName, mediaName.getName());
+                return inputMediaVideo;
+            }
+        }).collect(Collectors.toList());
+        listMedia.get(0).setCaption(telegramPost.MessageURL);
         sendMediaGroup.setMedias(listMedia);
         return sendMediaGroup;
     }
-    public SendVideo SendVideo(InputStream mediaStream, String filename) {
-        SendVideo video = new SendVideo();
-        InputFile inputFile = new InputFile(mediaStream,filename);
-        video.setVideo(inputFile);
-        return null;
-    }
-    public SendVideo SendVideo(Message message) {
+
+    public SendVideo SendVideo(TelegramPost telegramPost) {
         SendVideo sendVideo = new SendVideo();
-        sendVideo.setCaption(message.MessageURL);
-        sendVideo.setSupportsStreaming(true);
-//        var caption = new MessageEntity();
-//        caption.setOffset(0);
-//        caption.setLength(message.ThreadName.length());
-//        caption.setUrl(message.MessageURL);
-//        caption.setText(message.ThreadName);
-//        sendVideo.setCaptionEntities(Arrays.asList(caption));
         sendVideo.setChatId(chatId);
-        sendVideo.setVideo(new InputFile(message.URLVideos.get(0)));
+        InputFile inputVideo;
+        var urlVideo = telegramPost.URLVideos.get(0);
+        if (urlVideo.contains("http")) {
+            inputVideo = new InputFile(urlVideo);
+        } else {
+            inputVideo = new InputFile(new File(urlVideo));
+        }
+        sendVideo.setVideo(inputVideo);
+        sendVideo.setSupportsStreaming(true);
+        sendVideo.setCaption(telegramPost.MessageURL);
         return sendVideo;
     }
 }

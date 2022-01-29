@@ -17,10 +17,26 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 
 @Component
 public class Converter {
     private static final Logger log = LoggerFactory.getLogger(Converter.class);
+    private Encoder encoder;
+    String VIDEO_ENCODER = "libx264";
+    public Converter() {
+        encoder = new Encoder();
+        String[] encoders = null;
+        try {
+            encoders = encoder.getVideoEncoders();
+        } catch (EncoderException e) {
+            e.printStackTrace();
+        }
+        //If availible Nvidia GPU
+        if (Arrays.stream(encoders).anyMatch(e->e.contains("h264_nvenc")))
+            VIDEO_ENCODER = "h264_nvenc";
+
+    }
 
     public String ConvertWebmToMP4(String URLVideo) {
         URL urlVideo = null;
@@ -33,25 +49,31 @@ public class Converter {
         audio.setCodec("libmp3lame");
         audio.setBitRate(128000);
         VideoAttributes video = new VideoAttributes();
-        video.setCodec("libx264");
+        video.setCodec(VIDEO_ENCODER);
         EncodingAttributes attrs = new EncodingAttributes();
         attrs.setAudioAttributes(audio);
         attrs.setVideoAttributes(video);
-        Encoder encoder = new Encoder();
 
         //Out file
         File target = null;
+        var fileName = Path.of(System.getProperty("java.io.tmpdir") + URLVideo.substring(URLVideo.lastIndexOf("/") + 1) + ".mp4");
+
         try {
-            target = Files.createFile(Path.of(System.getProperty("java.io.tmpdir")+URLVideo.substring(URLVideo.lastIndexOf("/")+1)+".mp4")).toFile();
+            if (Files.notExists(fileName)) {
+                target = Files.createFile(fileName).toFile();
+                try {
+                    encoder.encode(new MultimediaObject(urlVideo), target, attrs);
+                } catch (EncoderException e) {
+                    e.printStackTrace();
+                }
+            } else {
+                target = fileName.toFile();
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
-        try {
-            encoder.encode(new MultimediaObject(urlVideo), target, attrs);
-        } catch (EncoderException e) {
-            e.printStackTrace();
-        }
-        log.info("Converted to"+ target.getAbsolutePath());
-        return target.getAbsolutePath();
+
+        log.info("Converted to " + target.getPath());
+        return target.getPath();
     }
 }
