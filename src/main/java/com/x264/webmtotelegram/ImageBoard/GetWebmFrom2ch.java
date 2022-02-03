@@ -1,11 +1,14 @@
 package com.x264.webmtotelegram.ImageBoard;
 
+import com.x264.webmtotelegram.JPA.MediaRepository;
+import com.x264.webmtotelegram.JPA.ThreadRepository;
 import com.x264.webmtotelegram.Telegram.Bot;
 import com.x264.webmtotelegram.Telegram.TelegramPost;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.ApplicationContext;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
@@ -15,101 +18,131 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Component
 public class GetWebmFrom2ch {
-    private final ApplicationContext applicationContext;
     private final RestTemplate restTemplate;
     private static final String host2ch = "https://2ch.hk";
     private static final Logger log = LoggerFactory.getLogger(GetWebmFrom2ch.class);
     private Bot botBean;
     private Converter converter;
-    private ArrayList<Thread> ListThreads = new ArrayList<>();
+    private ArrayList<ImageBoardThread> listImageBoardThreads;
+    private ThreadRepository threadRepository;
+    private MediaRepository mediaRepository;
 
-    public GetWebmFrom2ch(RestTemplateBuilder restTemplateBuilder, ApplicationContext applicationContext) {
-        this.applicationContext = applicationContext;
+    public GetWebmFrom2ch(RestTemplateBuilder restTemplateBuilder, ApplicationContext applicationContext, ThreadRepository threadRepository, MediaRepository mediaRepository) {
         botBean = (Bot) applicationContext.getBean("bot");
         converter = (Converter) applicationContext.getBean("converter");
         restTemplate = restTemplateBuilder.build();
-        GetListThreads();
+        this.threadRepository = threadRepository;
+        this.mediaRepository = mediaRepository;
 
+        var currentThreads = GetListThreads();
+        var idsRepo =threadRepository.findAllByIdThread();
+        threadRepository.saveAll(currentThreads.stream().filter(e->!idsRepo.contains(e.getIdThread())).collect(Collectors.toList()));
+        var currentIdsThreads = currentThreads.stream().map(e1 -> e1.getIdThread()).collect(Collectors.toList());
+        var toRemoveList = threadRepository.findAllByIdThread().stream().filter(e -> !currentIdsThreads.contains(e)).collect(Collectors.toList());
+        threadRepository.deleteAllByIdInBatch(toRemoveList);
+        listImageBoardThreads = threadRepository.findAll();
     }
 
-    public ArrayList<Thread> GetListThreads() {
+    public ArrayList<ImageBoardThread> GetListThreads() {
         LinkedHashMap catalog = this.restTemplate.getForObject(host2ch + "/b/catalog.json", LinkedHashMap.class);
         ArrayList<LinkedHashMap> arrayThreads = (ArrayList) catalog.get("threads");
+        ArrayList<ImageBoardThread> imageBoardThreads = new ArrayList<>();
         arrayThreads.forEach(e -> {
-            Thread thread = new Thread();
-            thread.setIdThread(Long.parseLong((String) e.get("num")));
-            thread.setTitle((String) e.get("subject"));
-            ListThreads.add(thread);
+            ImageBoardThread imageBoardThread = new ImageBoardThread();
+            imageBoardThread.setIdThread(Long.parseLong((String) e.get("num")));
+            imageBoardThread.setTitle((String) e.get("subject"));
+            imageBoardThreads.add(imageBoardThread);
         });
-        return ListThreads;
+        return imageBoardThreads;
     }
 
-    public void CheckThread(Thread thread) {
-        log.info("Check thread " +thread.getTitle());
+    public void CheckThread(ImageBoardThread imageBoardThread) {
+        log.info("Check thread " + imageBoardThread.getTitle());
         LinkedHashMap threadJson;
         try {
-            threadJson = restTemplate.getForObject(host2ch + "/b/res/" + thread.getIdThread() + ".json", LinkedHashMap.class);
+            threadJson = restTemplate.getForObject(host2ch + "/b/res/" + imageBoardThread.getIdThread() + ".json", LinkedHashMap.class);
         } catch (HttpClientErrorException.NotFound exception) {
             log.warn("404 " + exception);
-            ListThreads.remove(thread);
+            threadRepository.delete(imageBoardThread);
+            listImageBoardThreads.remove(imageBoardThread);
             return;
         }
         //Threads->Posts
         ArrayList<LinkedHashMap> threads = (ArrayList<LinkedHashMap>) threadJson.get("threads");
         LinkedHashMap to1 = threads.get(0);
         ArrayList<LinkedHashMap> posts = (ArrayList<LinkedHashMap>) to1.get("posts");
-        posts.forEach(
+        posts.stream().filter(e -> (Integer) e.get("num") > imageBoardThread.getLastCheckedMessage()).forEach(
                 post -> {
                     ArrayList<String> urlFiles = new ArrayList<>();
                     int numMessage = (int) post.get("num");
-                    if (numMessage > thread.getLastCheckedMessage()) {
-                        ArrayList<LinkedHashMap> filesList = (ArrayList<LinkedHashMap>) post.get("files");
-                        filesList.forEach(file -> {
-                            //check that this a video file
-                            //type mp4 - 10, webm - 6
-                            String fileType = (String) file.get("name");
-                            if (fileType.contains("mp4")){
-                                urlFiles.add(host2ch + file.get("path"));
-                            }
-                            else if (fileType.contains("webm")){
-                                var filePath = converter.ConvertWebmToMP4(host2ch + file.get("path"));
-                                urlFiles.add(filePath);
-                            }
-                        });
+                    ArrayList<LinkedHashMap> filesList = (ArrayList<LinkedHashMap>) post.get("files");
+                    filesList.forEach(file -> {
+                        //check that this a video file
+                        //type mp4 - 10, webm - 6
+                        String fileType = (String) file.get("name");
+                        String hash = (String) file.get("md5");
+                        String name = (String) file.get("name");
+                        String fullName = (String) file.get("fullname");
+                        if (fileType.contains("mp4")) {
+                            var mediaFile = new MediaFile();
+                            mediaFile.setMd5(hash);
+                            mediaFile.setName(name);
+                            mediaFile.setFullName(fullName);
+                            mediaRepository.save(mediaFile);
+                            imageBoardThread.addMediaFile(mediaFile);
+                            //urlFiles.add(host2ch + file.get("path"));
+                        } else if (fileType.contains("webm")) {
+                            var mediaFile = new MediaFile();
+                            mediaFile.setMd5(hash);
+                            mediaFile.setName(name);
+                            mediaFile.setFullName(fullName);
+                            mediaRepository.save(mediaFile);
+                            imageBoardThread.addMediaFile(mediaFile);
+                            //var filePath =  converter.ConvertWebmToMP4(host2ch + file.get("path"));
+                            //urlFiles.add(filePath);
+                        }
+                    });
 
-
-                    }
+                    imageBoardThread.setLastCheckedMessage(numMessage);
 
                     if (!urlFiles.isEmpty()) {
                         TelegramPost telegramPost = new TelegramPost();
-                        telegramPost.ThreadName = thread.getTitle();
-                        telegramPost.MessageURL = host2ch + "/b/res/" + thread.getIdThread() + ".html" + "#" + numMessage;
+                        telegramPost.ThreadName = imageBoardThread.getTitle();
+                        telegramPost.MessageURL = host2ch + "/b/res/" + imageBoardThread.getIdThread() + ".html" + "#" + numMessage;
                         telegramPost.URLVideos = urlFiles;
                         botBean.telegramPostArrayDeque.add(telegramPost);
                     }
                 }
         );
+        threadRepository.save(imageBoardThread);
     }
 
-    //@Scheduled(fixedRate = 10 * 60000)
+    public void UpdateListThreads() {
+    }
 
+    CompletableFuture completableFuture;
+
+    @Scheduled(fixedRate = 60000)
     @PostConstruct
     public void UpdateThreads() {
-        String finalThreadFilter = "фап";
-        ListThreads.stream().filter(e->e.getTitle().contains(finalThreadFilter)).forEach(thread -> {
-            CompletableFuture.runAsync(() -> {
-                CheckThread(thread);
-                try {
-                    TimeUnit.SECONDS.sleep(20);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-
+        if (completableFuture == null || (completableFuture.isDone())) {
+            completableFuture = new CompletableFuture<>();
+            completableFuture.supplyAsync(() -> {
+                //.filter(e-> Pattern.compile(Pattern.quote("webm mp4"),Pattern.CASE_INSENSITIVE).matcher(e.getTitle()).find())
+                listImageBoardThreads.stream().forEach(imageBoardThread -> {
+                    CheckThread(imageBoardThread);
+                    try {
+                        TimeUnit.SECONDS.sleep(4);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                });
+                return null;
             });
-
-        });
+        }
     }
 }

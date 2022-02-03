@@ -24,6 +24,7 @@ public class Converter {
     private static final Logger log = LoggerFactory.getLogger(Converter.class);
     private Encoder encoder;
     String VIDEO_ENCODER = "libx264";
+    String AUDIO_ENCODER = "libmp3lame";
     public Converter() {
         encoder = new Encoder();
         String[] encoders = null;
@@ -32,9 +33,18 @@ public class Converter {
         } catch (EncoderException e) {
             e.printStackTrace();
         }
+        String[] encodersAudio = null;
+        try {
+            encodersAudio = encoder.getAudioEncoders();
+        } catch (EncoderException e) {
+            e.printStackTrace();
+        }
         //If availible Nvidia GPU
         if (Arrays.stream(encoders).anyMatch(e->e.contains("h264_nvenc")))
             VIDEO_ENCODER = "h264_nvenc";
+        //
+        if (Arrays.stream(encodersAudio).anyMatch(e->e.contains("aac")))
+            AUDIO_ENCODER = "aac";
 
     }
 
@@ -46,8 +56,7 @@ public class Converter {
             e.printStackTrace();
         }
         AudioAttributes audio = new AudioAttributes();
-        audio.setCodec("libmp3lame");
-        audio.setBitRate(128000);
+        audio.setCodec(AUDIO_ENCODER);
         VideoAttributes video = new VideoAttributes();
         video.setCodec(VIDEO_ENCODER);
         EncodingAttributes attrs = new EncodingAttributes();

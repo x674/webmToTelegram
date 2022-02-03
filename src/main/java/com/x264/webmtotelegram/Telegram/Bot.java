@@ -84,7 +84,7 @@ public class Bot extends TelegramLongPollingBot {
 
     private CompletableFuture completableSentMessage;
 
-    @Scheduled(fixedRate = 4000)
+    @Scheduled(fixedRate = 1000)
     public void AsyncSentMessages() {
         if (!telegramPostArrayDeque.isEmpty()) {
             TelegramPost telegramPost = telegramPostArrayDeque.getFirst();
@@ -142,6 +142,22 @@ public class Bot extends TelegramLongPollingBot {
         } else {
             inputVideo = new InputFile(new File(urlVideo));
         }
+        sendVideo.setVideo(inputVideo);
+        sendVideo.setSupportsStreaming(true);
+        sendVideo.setCaption(telegramPost.MessageURL);
+        return sendVideo;
+    }
+    public SendVideo SendVideoByFile_id(TelegramPost telegramPost) {
+        SendVideo sendVideo = new SendVideo();
+        sendVideo.setChatId(chatId);
+        InputFile inputVideo;
+        var urlVideo = telegramPost.URLVideos.get(0);
+        if (urlVideo.contains("http")) {
+            inputVideo = new InputFile(urlVideo);
+        } else {
+            inputVideo = new InputFile(new File(urlVideo));
+        }
+        var ee = new InputFile();
         sendVideo.setVideo(inputVideo);
         sendVideo.setSupportsStreaming(true);
         sendVideo.setCaption(telegramPost.MessageURL);
