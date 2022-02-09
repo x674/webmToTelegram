@@ -1,13 +1,16 @@
 package com.x264.webmtotelegram.Telegram;
 
 import com.x264.webmtotelegram.ImageBoard.GetWebmFrom2ch;
+import com.x264.webmtotelegram.JPA.MediaRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.context.ApplicationContext;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.ParseMode;
 import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
@@ -18,10 +21,13 @@ import org.telegram.telegrambots.meta.api.objects.media.InputMedia;
 import org.telegram.telegrambots.meta.api.objects.media.InputMediaVideo;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import javax.annotation.PostConstruct;
 import java.io.File;
 import java.util.ArrayDeque;
 import java.util.List;
+import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Component
@@ -31,13 +37,15 @@ public class Bot extends TelegramLongPollingBot {
     private String token;
     private String chatId;
     final ApplicationContext applicationContext;
+    final MediaRepository mediaRepository;
 
-    public Bot(ApplicationContext applicationContext, ApplicationArguments applicationArguments) {
+    public Bot(ApplicationContext applicationContext, ApplicationArguments applicationArguments, MediaRepository mediaRepository) {
         this.applicationContext = applicationContext;
         this.applicationArguments = applicationArguments;
         token = applicationArguments.getOptionValues("bot.token").get(0);
         username = applicationArguments.getOptionValues("bot.name").get(0);
         chatId = applicationArguments.getOptionValues("bot.chatId").get(0);
+        this.mediaRepository = mediaRepository;
     }
 
     @Override
@@ -81,35 +89,48 @@ public class Bot extends TelegramLongPollingBot {
     }
 
     public ArrayDeque<TelegramPost> telegramPostArrayDeque = new ArrayDeque<>();
+    private CompletableFuture completableFuture;
 
-    private CompletableFuture completableSentMessage;
-
-    @Scheduled(fixedRate = 1000)
+    //TODO исправить гонку фьючей
+    @PostConstruct
     public void AsyncSentMessages() {
         if (!telegramPostArrayDeque.isEmpty()) {
             TelegramPost telegramPost = telegramPostArrayDeque.getFirst();
-            if (completableSentMessage == null) {
-                if (telegramPost.URLVideos.size() == 1)
-                    completableSentMessage = executeAsync(SendVideo(telegramPost));
+            CompletableFuture.supplyAsync(() -> {
+                if (telegramPost.URLVideos.size() == 1) executeAsync(SendVideo(telegramPost)).exceptionally(e -> {
+                    log.error(e.getMessage());
+                    if (e.getMessage().contains("Too Many Requests")) SleepBySecond(30);
+                    return null;
+                }).join();
                 else if (telegramPost.URLVideos.size() > 1) {
-                    List<Message> resultMessages;
-                    try {
-                        resultMessages = execute(SendMediaGroup(telegramPost));
-                        log.warn(resultMessages.toString());
-                    } catch (TelegramApiException e) {
-                        e.printStackTrace();
-                    }
+                    executeAsync(SendMediaGroup(telegramPost)).exceptionally(e -> {
+                        log.error(e.getMessage());
+                        if (e.getMessage().contains("Too Many Requests")) SleepBySecond(30);
+                        return null;
+                    }).join();
                 }
+                return null;
+
+
+            }).thenRun(() -> {
                 telegramPostArrayDeque.remove(telegramPost);
-            } else if (completableSentMessage.isDone()) {
-                if (telegramPost.URLVideos.size() == 1)
-                    completableSentMessage = executeAsync(SendVideo(telegramPost));
-                else if (telegramPost.URLVideos.size() > 1)
-                    completableSentMessage = executeAsync(SendMediaGroup(telegramPost));
-                telegramPostArrayDeque.remove(telegramPost);
-            }
+                SleepBySecond(10);
+                AsyncSentMessages();
+            });
+        } else CompletableFuture.runAsync(() -> {
+            SleepBySecond(10);
+            AsyncSentMessages();
+        });
+    }
+
+    public static void SleepBySecond(long seconds) {
+        try {
+            TimeUnit.SECONDS.sleep(seconds);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
+
 
     public SendMediaGroup SendMediaGroup(TelegramPost telegramPost) {
         SendMediaGroup sendMediaGroup = new SendMediaGroup();
@@ -119,15 +140,15 @@ public class Bot extends TelegramLongPollingBot {
             inputMediaVideo.setSupportsStreaming(true);
             if (e.contains("http")) {
                 inputMediaVideo.setMedia(e);
-                return inputMediaVideo;
             } else {
                 File mediaName = new File(e);
                 inputMediaVideo = new InputMediaVideo();
                 inputMediaVideo.setMedia(mediaName, mediaName.getName());
-                return inputMediaVideo;
             }
+            return inputMediaVideo;
         }).collect(Collectors.toList());
-        listMedia.get(0).setCaption(telegramPost.MessageURL);
+        listMedia.get(0).setParseMode(ParseMode.MARKDOWNV2);
+        listMedia.get(0).setCaption("[" + telegramPost.ThreadName + "]" + "(" + telegramPost.MessageURL + ")");
         sendMediaGroup.setMedias(listMedia);
         return sendMediaGroup;
     }
@@ -144,9 +165,13 @@ public class Bot extends TelegramLongPollingBot {
         }
         sendVideo.setVideo(inputVideo);
         sendVideo.setSupportsStreaming(true);
-        sendVideo.setCaption(telegramPost.MessageURL);
+        sendVideo.setParseMode(ParseMode.MARKDOWNV2);
+        ;
+        sendVideo.setCaption("[" + telegramPost.ThreadName + "]" + "(" + telegramPost.MessageURL + ")");
+        ;
         return sendVideo;
     }
+
     public SendVideo SendVideoByFile_id(TelegramPost telegramPost) {
         SendVideo sendVideo = new SendVideo();
         sendVideo.setChatId(chatId);

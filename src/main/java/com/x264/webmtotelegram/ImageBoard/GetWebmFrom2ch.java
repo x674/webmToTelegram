@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Component
@@ -87,23 +88,19 @@ public class GetWebmFrom2ch {
                         String hash = (String) file.get("md5");
                         String name = (String) file.get("name");
                         String fullName = (String) file.get("fullname");
+                        if (mediaRepository.existsById(hash))
+                            return;
                         if (fileType.contains("mp4")) {
-                            var mediaFile = new MediaFile();
-                            mediaFile.setMd5(hash);
-                            mediaFile.setName(name);
-                            mediaFile.setFullName(fullName);
+                            var mediaFile = new MediaFile(hash,name,fullName);
                             mediaRepository.save(mediaFile);
                             imageBoardThread.addMediaFile(mediaFile);
-                            //urlFiles.add(host2ch + file.get("path"));
+                            urlFiles.add(host2ch + file.get("path"));
                         } else if (fileType.contains("webm")) {
-                            var mediaFile = new MediaFile();
-                            mediaFile.setMd5(hash);
-                            mediaFile.setName(name);
-                            mediaFile.setFullName(fullName);
+                            var mediaFile = new MediaFile(hash,name,fullName);
+                            var filePath =  converter.ConvertWebmToMP4(host2ch + file.get("path"));
                             mediaRepository.save(mediaFile);
                             imageBoardThread.addMediaFile(mediaFile);
-                            //var filePath =  converter.ConvertWebmToMP4(host2ch + file.get("path"));
-                            //urlFiles.add(filePath);
+                            urlFiles.add(filePath);
                         }
                     });
 
@@ -121,28 +118,23 @@ public class GetWebmFrom2ch {
         threadRepository.save(imageBoardThread);
     }
 
-    public void UpdateListThreads() {
-    }
-
-    CompletableFuture completableFuture;
-
-    @Scheduled(fixedRate = 60000)
     @PostConstruct
     public void UpdateThreads() {
-        if (completableFuture == null || (completableFuture.isDone())) {
-            completableFuture = new CompletableFuture<>();
-            completableFuture.supplyAsync(() -> {
-                //.filter(e-> Pattern.compile(Pattern.quote("webm mp4"),Pattern.CASE_INSENSITIVE).matcher(e.getTitle()).find())
-                listImageBoardThreads.stream().forEach(imageBoardThread -> {
-                    CheckThread(imageBoardThread);
-                    try {
-                        TimeUnit.SECONDS.sleep(4);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                });
-                return null;
-            });
-        }
+        CompletableFuture.supplyAsync(() -> {
+            //.filter(e-> Pattern.compile(Pattern.quote("webm mp4"),Pattern.CASE_INSENSITIVE).matcher(e.getTitle()).find())
+            listImageBoardThreads.stream()
+                    .filter(e-> Pattern.compile(Pattern.quote("фап"),Pattern.CASE_INSENSITIVE).matcher(e.getTitle()).find()||
+                            Pattern.compile(Pattern.quote("fap"),Pattern.CASE_INSENSITIVE).matcher(e.getTitle()).find()||
+                            Pattern.compile(Pattern.quote("afg"),Pattern.CASE_INSENSITIVE).matcher(e.getTitle()).find())
+                    .forEach(imageBoardThread -> {
+                        CheckThread(imageBoardThread);
+                        try {
+                            TimeUnit.SECONDS.sleep(4);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    });
+            return null;
+        });
     }
 }

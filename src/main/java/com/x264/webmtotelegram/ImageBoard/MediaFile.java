@@ -14,6 +14,15 @@ public class MediaFile {
     @Basic
     private String fullName;
 
+    public MediaFile(String md5, String name, String fullName) {
+        this.md5 = md5;
+        this.name = name;
+        this.fullName = fullName;
+    }
+
+    public MediaFile() {
+    }
+
     public String getMd5() {
         return md5;
     }
