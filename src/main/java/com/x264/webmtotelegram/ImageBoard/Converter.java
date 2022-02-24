@@ -21,6 +21,7 @@ import java.util.Arrays;
 
 @Component
 public class Converter {
+    public static final String PATH_SAVE = "D://";
     private static final Logger log = LoggerFactory.getLogger(Converter.class);
     private Encoder encoder;
     String VIDEO_ENCODER = "libx264";
@@ -65,7 +66,7 @@ public class Converter {
 
         //Out file
         File target = null;
-        var fileName = Path.of(System.getProperty("java.io.tmpdir") + URLVideo.substring(URLVideo.lastIndexOf("/") + 1) + ".mp4");
+        var fileName = Path.of(PATH_SAVE + URLVideo.substring(URLVideo.lastIndexOf("/") + 1) + ".mp4");
 
         try {
             if (Files.notExists(fileName)) {

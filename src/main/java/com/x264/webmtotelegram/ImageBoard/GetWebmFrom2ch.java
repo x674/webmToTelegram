@@ -92,9 +92,11 @@ public class GetWebmFrom2ch {
                             return;
                         if (fileType.contains("mp4")) {
                             var mediaFile = new MediaFile(hash,name,fullName);
+
                             mediaRepository.save(mediaFile);
                             imageBoardThread.addMediaFile(mediaFile);
-                            urlFiles.add(host2ch + file.get("path"));
+                            //urlFiles.add(host2ch + file.get("path"));
+                            urlFiles.add(Downloader.DownloadFile(host2ch + file.get("path")));
                         } else if (fileType.contains("webm")) {
                             var mediaFile = new MediaFile(hash,name,fullName);
                             var filePath =  converter.ConvertWebmToMP4(host2ch + file.get("path"));

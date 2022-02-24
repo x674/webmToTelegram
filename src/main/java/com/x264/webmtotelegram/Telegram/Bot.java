@@ -4,10 +4,8 @@ import com.x264.webmtotelegram.ImageBoard.GetWebmFrom2ch;
 import com.x264.webmtotelegram.JPA.MediaRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.context.ApplicationContext;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.ParseMode;
@@ -15,7 +13,6 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
-import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.media.InputMedia;
 import org.telegram.telegrambots.meta.api.objects.media.InputMediaVideo;
@@ -25,7 +22,6 @@ import javax.annotation.PostConstruct;
 import java.io.File;
 import java.util.ArrayDeque;
 import java.util.List;
-import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -137,7 +133,6 @@ public class Bot extends TelegramLongPollingBot {
         sendMediaGroup.setChatId(chatId);
         List<InputMedia> listMedia = telegramPost.URLVideos.stream().map(e -> {
             var inputMediaVideo = new InputMediaVideo();
-            inputMediaVideo.setSupportsStreaming(true);
             if (e.contains("http")) {
                 inputMediaVideo.setMedia(e);
             } else {
@@ -145,14 +140,15 @@ public class Bot extends TelegramLongPollingBot {
                 inputMediaVideo = new InputMediaVideo();
                 inputMediaVideo.setMedia(mediaName, mediaName.getName());
             }
+            inputMediaVideo.setSupportsStreaming(true);
             return inputMediaVideo;
         }).collect(Collectors.toList());
-        listMedia.get(0).setParseMode(ParseMode.MARKDOWNV2);
-        listMedia.get(0).setCaption("[" + telegramPost.ThreadName + "]" + "(" + telegramPost.MessageURL + ")");
+        listMedia.get(0).setParseMode(ParseMode.HTML);
+        String caption = "<a href=\"" + telegramPost.MessageURL + "\">" + telegramPost.ThreadName + "</a>";
+        listMedia.get(0).setCaption(caption);
         sendMediaGroup.setMedias(listMedia);
         return sendMediaGroup;
     }
-
     public SendVideo SendVideo(TelegramPost telegramPost) {
         SendVideo sendVideo = new SendVideo();
         sendVideo.setChatId(chatId);
@@ -165,10 +161,11 @@ public class Bot extends TelegramLongPollingBot {
         }
         sendVideo.setVideo(inputVideo);
         sendVideo.setSupportsStreaming(true);
-        sendVideo.setParseMode(ParseMode.MARKDOWNV2);
-        ;
-        sendVideo.setCaption("[" + telegramPost.ThreadName + "]" + "(" + telegramPost.MessageURL + ")");
-        ;
+        sendVideo.setParseMode(ParseMode.HTML);
+        //String caption = "[" + telegramPost.ThreadName + "]" + "(" + telegramPost.MessageURL + ")";
+        String caption = "<a href=\"" + telegramPost.MessageURL + "\">" + telegramPost.ThreadName + "</a>";
+        sendVideo.setCaption(caption);
+
         return sendVideo;
     }
 
