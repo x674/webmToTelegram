@@ -4,6 +4,7 @@ import com.x264.webmtotelegram.ImageBoard.GetWebmFrom2ch;
 import com.x264.webmtotelegram.JPA.MediaRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
@@ -29,8 +30,11 @@ import java.util.stream.Collectors;
 @Component
 public class Bot extends TelegramLongPollingBot {
     final ApplicationArguments applicationArguments;
+    @Value("${bot.name}")
     private String username;
+    @Value("${bot.token}")
     private String token;
+    @Value("${bot.chatId}")
     private String chatId;
     final ApplicationContext applicationContext;
     final MediaRepository mediaRepository;
@@ -38,9 +42,9 @@ public class Bot extends TelegramLongPollingBot {
     public Bot(ApplicationContext applicationContext, ApplicationArguments applicationArguments, MediaRepository mediaRepository) {
         this.applicationContext = applicationContext;
         this.applicationArguments = applicationArguments;
-        token = applicationArguments.getOptionValues("bot.token").get(0);
-        username = applicationArguments.getOptionValues("bot.name").get(0);
-        chatId = applicationArguments.getOptionValues("bot.chatId").get(0);
+//        token = applicationArguments.getOptionValues("bot.token").get(0);
+//        username = applicationArguments.getOptionValues("bot.name").get(0);
+//        chatId = applicationArguments.getOptionValues("bot.chatId").get(0);
         this.mediaRepository = mediaRepository;
     }
 
