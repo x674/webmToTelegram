@@ -1,9 +1,8 @@
-package com.x264.webmtotelegram.ImageBoard;
+package com.x264.webmtotelegram.Entities;
 
 import javax.persistence.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 @Table(name = "threads")
 @Entity

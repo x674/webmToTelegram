@@ -1,6 +1,5 @@
-package com.x264.webmtotelegram.ImageBoard;
+package com.x264.webmtotelegram.VideoUtils;
 
-import com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -21,11 +20,12 @@ import java.util.Arrays;
 
 @Component
 public class Converter {
-    public static final String PATH_SAVE = "D://";
+    public static final String PATH_SAVE = System.getProperty("user.dir") + "/";
     private static final Logger log = LoggerFactory.getLogger(Converter.class);
     private Encoder encoder;
     String VIDEO_ENCODER = "libx264";
-    String AUDIO_ENCODER = "libmp3lame";
+    String AUDIO_ENCODER = "aac";
+
     public Converter() {
         encoder = new Encoder();
         String[] encoders = null;
@@ -34,22 +34,13 @@ public class Converter {
         } catch (EncoderException e) {
             e.printStackTrace();
         }
-        String[] encodersAudio = null;
-        try {
-            encodersAudio = encoder.getAudioEncoders();
-        } catch (EncoderException e) {
-            e.printStackTrace();
-        }
-        //If availible Nvidia GPU
-        if (Arrays.stream(encoders).anyMatch(e->e.contains("h264_nvenc")))
+        // If availible Nvidia GPU
+        if (Arrays.stream(encoders).anyMatch(e -> e.contains("h264_nvenc")))
             VIDEO_ENCODER = "h264_nvenc";
-        //
-        if (Arrays.stream(encodersAudio).anyMatch(e->e.contains("aac")))
-            AUDIO_ENCODER = "aac";
 
     }
 
-    public String ConvertWebmToMP4(String URLVideo) {
+    public File ConvertWebmToMP4(String URLVideo) {
         URL urlVideo = null;
         try {
             urlVideo = new URL(URLVideo);
@@ -64,7 +55,7 @@ public class Converter {
         attrs.setAudioAttributes(audio);
         attrs.setVideoAttributes(video);
 
-        //Out file
+        // Out file
         File target = null;
         var fileName = Path.of(PATH_SAVE + URLVideo.substring(URLVideo.lastIndexOf("/") + 1) + ".mp4");
 
@@ -84,6 +75,6 @@ public class Converter {
         }
 
         log.info("Converted to " + target.getPath());
-        return target.getPath();
+        return target;
     }
 }

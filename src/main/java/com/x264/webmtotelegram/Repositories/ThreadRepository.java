@@ -1,10 +1,11 @@
-package com.x264.webmtotelegram.JPA;
+package com.x264.webmtotelegram.Repositories;
 
-import com.x264.webmtotelegram.ImageBoard.ImageBoardThread;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.ArrayList;
+
+import com.x264.webmtotelegram.Entities.ImageBoardThread;
 
 public interface ThreadRepository extends JpaRepository<ImageBoardThread,Long> {
     ArrayList<ImageBoardThread> findAll();

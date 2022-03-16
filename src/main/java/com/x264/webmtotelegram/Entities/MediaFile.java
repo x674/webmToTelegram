@@ -1,8 +1,6 @@
-package com.x264.webmtotelegram.ImageBoard;
+package com.x264.webmtotelegram.Entities;
 
 import javax.persistence.*;
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
 @Table(name = "media_file")
