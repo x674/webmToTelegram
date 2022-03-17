@@ -123,12 +123,12 @@ public class GetWebmFrom2ch {
         threadRepository.save(imageBoardThread);
     }
 
-    @PostConstruct
+//    @PostConstruct
     public void UpdateThreads() {
         CompletableFuture.supplyAsync(() -> {
             listImageBoardThreads.stream()
                     .filter(e-> 
-                        Pattern.compile(Pattern.quote("webm"),Pattern.CASE_INSENSITIVE).matcher(e.getTitle()).find())
+                        Pattern.compile(Pattern.quote("фап тред"),Pattern.CASE_INSENSITIVE).matcher(e.getTitle()).find())
                     .forEach(imageBoardThread -> {
                         CheckThread(imageBoardThread);
                         try {

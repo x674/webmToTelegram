@@ -2,27 +2,14 @@ package com.x264.webmtotelegram;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
-@EnableScheduling
-public class WebmToTelegramApplication implements CommandLineRunner {
+public class WebmToTelegramApplication {
     private static final Logger log = LoggerFactory.getLogger(WebmToTelegramApplication.class);
 
     public static void main(String[] args) {
-
         SpringApplication.run(WebmToTelegramApplication.class, args);
-
-    }
-
-    @Override
-    public void run(String... args) throws Exception {
-        // var path =new
-        // Converter().ConvertWebmToMP4("https://2ch.hk/b/src/262044424/16431863491570.webm");
-        // log.info("CONVERTED TO "+ path);
-        log.info("Start");
     }
 }
