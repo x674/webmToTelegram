@@ -5,7 +5,7 @@ import com.x264.webmtotelegram.Entities.MediaFile;
 import com.x264.webmtotelegram.Repositories.MediaRepository;
 import com.x264.webmtotelegram.Repositories.ThreadRepository;
 import com.x264.webmtotelegram.Telegram.Bot;
-import com.x264.webmtotelegram.Telegram.TelegramPost;
+import com.x264.webmtotelegram.Entities.TelegramPost;
 import com.x264.webmtotelegram.VideoUtils.Converter;
 
 import org.slf4j.Logger;
@@ -16,7 +16,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
-import javax.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.concurrent.CompletableFuture;

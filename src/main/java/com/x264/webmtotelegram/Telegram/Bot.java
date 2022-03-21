@@ -1,5 +1,6 @@
 package com.x264.webmtotelegram.Telegram;
 
+import com.x264.webmtotelegram.Entities.TelegramPost;
 import com.x264.webmtotelegram.ImageBoard.GetWebmFrom2ch;
 import com.x264.webmtotelegram.Repositories.MediaRepository;
 
@@ -14,6 +15,7 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
+import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.media.InputMedia;
 import org.telegram.telegrambots.meta.api.objects.media.InputMediaVideo;
@@ -64,11 +66,27 @@ public class Bot extends TelegramLongPollingBot {
 
     @Override
     public void onUpdateReceived(Update update) {
-        if (update.hasMessage() && update.getMessage().getText().contains("/CustomKeyboard")) {
-            sendCustomKeyboard(update.getMessage().getChatId().toString());
+        if (update.hasMessage())
+        {
+            var message = update.getMessage();
+            if (message.isCommand())
+            {
+                var textMessage = message.getText();
+                if (textMessage.contains("Start"))
+                    sendInlineKeyboardMainMenu(message.getChatId().toString());
+            }
         }
-        if (update.hasMessage() && update.getMessage().getText().contains("/SendInlineKeyboard")) {
-            sendInlineKeyboard(update.getMessage().getChatId().toString());
+        if (update.hasCallbackQuery())
+        {
+            var callbackQuery = update.getCallbackQuery();
+            var callbackCommand = callbackQuery.getData();
+
+            if (callbackCommand.contains("StatusService"))
+                sendInlineKeyboardStatusService(callbackQuery.getMessage());
+
+            else if (callbackCommand.contains("mainMenu"))
+                sendInlineKeyboardMainMenu(callbackQuery.getMessage().getChatId().toString());
+
         }
     }
 
@@ -110,32 +128,35 @@ public class Bot extends TelegramLongPollingBot {
         }
     }
 
-    public void sendInlineKeyboard(String chatId) {
+    public void sendInlineKeyboardMainMenu(String chatId) {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
-        message.setText("Inline model below.");
+        message.setText("Главное меню");
 
-        // Create InlineKeyboardMarkup object
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
-        // Create the keyboard (list of InlineKeyboardButton list)
+
         List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
-        // Create a list for buttons
-        List<InlineKeyboardButton> Buttons = new ArrayList<InlineKeyboardButton>();
-        // Initialize each button, the text must be written
-        InlineKeyboardButton youtube = new InlineKeyboardButton("youtube");
-        // Also must use exactly one of the optional fields,it can edit  by set method
-        youtube.setCallbackData("cbyoutube");
-        //youtube.setUrl("https://www.youtube.com");
-        // Add button to the list
-        Buttons.add(youtube);
-        // Initialize each button, the text must be written
-        InlineKeyboardButton github = new InlineKeyboardButton("github");
-        // Also must use exactly one of the optional fields,it can edit  by set method
-        //github.setUrl("https://github.com");
-        github.setCallbackData("cbgithub");
-        // Add button to the list
-        Buttons.add(github);
-        keyboard.add(Buttons);
+        //Vertical rows
+        List<InlineKeyboardButton> row1 = new ArrayList<>();
+        List<InlineKeyboardButton> row2 = new ArrayList<>();
+        List<InlineKeyboardButton> row3 = new ArrayList<>();
+
+        InlineKeyboardButton statusService = new InlineKeyboardButton("1. Статус сервиса");
+        statusService.setCallbackData("StatusService");
+        row1.add(statusService);
+
+        InlineKeyboardButton addThread = new InlineKeyboardButton("2. Добавить тред в очередь скачивания");
+        addThread.setCallbackData("addThread");
+        row2.add(addThread);
+
+        InlineKeyboardButton downloadAllThreads = new InlineKeyboardButton("3. Скачать медиа из всех тредов");
+        downloadAllThreads.setCallbackData("downloadAllThreads");
+        row3.add(downloadAllThreads);
+
+        keyboard.add(row1);
+        keyboard.add(row2);
+        keyboard.add(row3);
+
         inlineKeyboardMarkup.setKeyboard(keyboard);
         // Add it to the message
         message.setReplyMarkup(inlineKeyboardMarkup);
@@ -146,6 +167,35 @@ public class Bot extends TelegramLongPollingBot {
         } catch (TelegramApiException e) {
             e.printStackTrace();
         }
+    }
+
+    public void sendInlineKeyboardStatusService(Message message) {
+        //SendMessage message = new SendMessage();
+        //message.setChatId(chatId);
+        message.setText("Статус сервиса \r\nВремя работы \r\nТекущие задачи");
+
+        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+
+        List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
+        //Vertical rows
+        List<InlineKeyboardButton> row1 = new ArrayList<>();
+
+        InlineKeyboardButton statusService = new InlineKeyboardButton("Вернуться назад");
+        statusService.setCallbackData("mainMenu");
+        row1.add(statusService);
+
+
+        keyboard.add(row1);
+
+        inlineKeyboardMarkup.setKeyboard(keyboard);
+        message.setReplyMarkup(inlineKeyboardMarkup);
+
+//        try {
+//            // Send the message
+//            execute(message);
+//        } catch (TelegramApiException e) {
+//            e.printStackTrace();
+//        }
     }
 
     public ArrayDeque<TelegramPost> telegramPostArrayDeque = new ArrayDeque<>();

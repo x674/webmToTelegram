@@ -22,7 +22,9 @@ dependencies {
 
     runtimeOnly 'com.h2database:h2'
     implementation 'org.telegram:telegrambots-spring-boot-starter:5.7.1'
-    implementation 'ws.schild:jave-all-deps:3.2.0'
+    implementation 'ws.schild:jave-core:3.2.0'
+    implementation 'ws.schild:jave-nativebin-linux-arm64:3.2.0'
+    implementation 'ws.schild:jave-nativebin-win64:3.2.0'
 
 }
 

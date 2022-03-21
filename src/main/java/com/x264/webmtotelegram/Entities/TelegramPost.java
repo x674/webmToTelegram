@@ -1,4 +1,4 @@
-package com.x264.webmtotelegram.Telegram;
+package com.x264.webmtotelegram.Entities;
 
 import java.util.ArrayList;
 
