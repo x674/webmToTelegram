@@ -10,10 +10,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
 import org.telegram.telegrambots.meta.api.methods.ParseMode;
 import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
+import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
@@ -66,136 +69,31 @@ public class Bot extends TelegramLongPollingBot {
 
     @Override
     public void onUpdateReceived(Update update) {
-        if (update.hasMessage())
-        {
-            var message = update.getMessage();
-            if (message.isCommand())
-            {
-                var textMessage = message.getText();
-                if (textMessage.contains("Start"))
-                    sendInlineKeyboardMainMenu(message.getChatId().toString());
+        try {
+            if (update.hasMessage()) {
+                var message = update.getMessage();
+                if (message.isCommand()) {
+                    var textMessage = message.getText();
+                    if (textMessage.contains("Start")) {
+                        execute(CommandHandlers.sendInlineKeyboardMainMenu(message.getChatId().toString()));
+                    }
+                }
+            }
+            if (update.hasCallbackQuery()) {
+                var callbackQuery = update.getCallbackQuery();
+                var callbackCommand = callbackQuery.getData();
+
+                if (callbackCommand.contains("StatusService"))
+                    execute(CallbackHandlers.sendInlineKeyboardStatusService(callbackQuery));
+
+                else if (callbackCommand.contains("mainMenu"))
+                    execute(CallbackHandlers.returnToMainMenu(callbackQuery));
+
             }
         }
-        if (update.hasCallbackQuery())
-        {
-            var callbackQuery = update.getCallbackQuery();
-            var callbackCommand = callbackQuery.getData();
-
-            if (callbackCommand.contains("StatusService"))
-                sendInlineKeyboardStatusService(callbackQuery.getMessage());
-
-            else if (callbackCommand.contains("mainMenu"))
-                sendInlineKeyboardMainMenu(callbackQuery.getMessage().getChatId().toString());
-
-        }
-    }
-
-    public void sendCustomKeyboard(String chatId) {
-        SendMessage message = new SendMessage();
-        message.setChatId(chatId);
-        message.setText("Custom message text");
-
-        // Create ReplyKeyboardMarkup object
-        ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
-        // Create the keyboard (list of keyboard rows)
-        List<KeyboardRow> keyboard = new ArrayList<>();
-        // Create a keyboard row
-        KeyboardRow row = new KeyboardRow();
-        // Set each button, you can also use KeyboardButton objects if you need something else than text
-        row.add("Row 1 Button 1");
-        row.add("Row 1 Button 2");
-        row.add("Row 1 Button 3");
-        // Add the first row to the keyboard
-        keyboard.add(row);
-        // Create another keyboard row
-        row = new KeyboardRow();
-        // Set each button for the second line
-        row.add("Row 2 Button 1");
-        row.add("Row 2 Button 2");
-        row.add("Row 2 Button 3");
-        // Add the second row to the keyboard
-        keyboard.add(row);
-        // Set the keyboard to the markup
-        keyboardMarkup.setKeyboard(keyboard);
-        // Add it to the message
-        message.setReplyMarkup(keyboardMarkup);
-
-        try {
-            // Send the message
-            execute(message);
-        } catch (TelegramApiException e) {
+        catch (TelegramApiException e) {
             e.printStackTrace();
         }
-    }
-
-    public void sendInlineKeyboardMainMenu(String chatId) {
-        SendMessage message = new SendMessage();
-        message.setChatId(chatId);
-        message.setText("Главное меню");
-
-        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
-
-        List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
-        //Vertical rows
-        List<InlineKeyboardButton> row1 = new ArrayList<>();
-        List<InlineKeyboardButton> row2 = new ArrayList<>();
-        List<InlineKeyboardButton> row3 = new ArrayList<>();
-
-        InlineKeyboardButton statusService = new InlineKeyboardButton("1. Статус сервиса");
-        statusService.setCallbackData("StatusService");
-        row1.add(statusService);
-
-        InlineKeyboardButton addThread = new InlineKeyboardButton("2. Добавить тред в очередь скачивания");
-        addThread.setCallbackData("addThread");
-        row2.add(addThread);
-
-        InlineKeyboardButton downloadAllThreads = new InlineKeyboardButton("3. Скачать медиа из всех тредов");
-        downloadAllThreads.setCallbackData("downloadAllThreads");
-        row3.add(downloadAllThreads);
-
-        keyboard.add(row1);
-        keyboard.add(row2);
-        keyboard.add(row3);
-
-        inlineKeyboardMarkup.setKeyboard(keyboard);
-        // Add it to the message
-        message.setReplyMarkup(inlineKeyboardMarkup);
-
-        try {
-            // Send the message
-            execute(message);
-        } catch (TelegramApiException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public void sendInlineKeyboardStatusService(Message message) {
-        //SendMessage message = new SendMessage();
-        //message.setChatId(chatId);
-        message.setText("Статус сервиса \r\nВремя работы \r\nТекущие задачи");
-
-        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
-
-        List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
-        //Vertical rows
-        List<InlineKeyboardButton> row1 = new ArrayList<>();
-
-        InlineKeyboardButton statusService = new InlineKeyboardButton("Вернуться назад");
-        statusService.setCallbackData("mainMenu");
-        row1.add(statusService);
-
-
-        keyboard.add(row1);
-
-        inlineKeyboardMarkup.setKeyboard(keyboard);
-        message.setReplyMarkup(inlineKeyboardMarkup);
-
-//        try {
-//            // Send the message
-//            execute(message);
-//        } catch (TelegramApiException e) {
-//            e.printStackTrace();
-//        }
     }
 
     public ArrayDeque<TelegramPost> telegramPostArrayDeque = new ArrayDeque<>();
