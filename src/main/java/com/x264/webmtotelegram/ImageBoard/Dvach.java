@@ -24,17 +24,17 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Component
-public class GetWebmFrom2ch {
+public class Dvach {
     private final RestTemplate restTemplate;
     private static final String host2ch = "https://2ch.hk";
-    private static final Logger log = LoggerFactory.getLogger(GetWebmFrom2ch.class);
+    private static final Logger log = LoggerFactory.getLogger(Dvach.class);
     private Bot telegramBot;
     private Converter converter;
     private ArrayList<ImageBoardThread> listImageBoardThreads;
     private ThreadRepository threadRepository;
     private MediaRepository mediaRepository;
 
-    public GetWebmFrom2ch(RestTemplateBuilder restTemplateBuilder, ApplicationContext applicationContext,
+    public Dvach(RestTemplateBuilder restTemplateBuilder, ApplicationContext applicationContext,
             ThreadRepository threadRepository, MediaRepository mediaRepository, Converter converter, Bot telegramBot) {
         this.telegramBot = telegramBot;
         this.converter = converter;
@@ -53,7 +53,7 @@ public class GetWebmFrom2ch {
         listImageBoardThreads = threadRepository.findAll();
     }
 
-    public ArrayList<ImageBoardThread> GetListThreads() {
+    private ArrayList<ImageBoardThread> GetListThreads() {
         LinkedHashMap catalog = this.restTemplate.getForObject(host2ch + "/b/catalog.json", LinkedHashMap.class);
         ArrayList<LinkedHashMap> arrayThreads = (ArrayList) catalog.get("threads");
         ArrayList<ImageBoardThread> imageBoardThreads = new ArrayList<>();
@@ -66,7 +66,7 @@ public class GetWebmFrom2ch {
         return imageBoardThreads;
     }
 
-    public void CheckThread(ImageBoardThread imageBoardThread) {
+    private void CheckThread(ImageBoardThread imageBoardThread) {
         log.info("Check thread " + imageBoardThread.getTitle());
         LinkedHashMap threadJson;
         try {
@@ -123,7 +123,7 @@ public class GetWebmFrom2ch {
     }
 
 //    @PostConstruct
-    public void UpdateThreads() {
+    private void UpdateThreads() {
         CompletableFuture.supplyAsync(() -> {
             listImageBoardThreads.stream()
                     .filter(e-> 
@@ -139,4 +139,75 @@ public class GetWebmFrom2ch {
             return null;
         });
     }
+
+    /**
+     * @return Bot return the telegramBot
+     */
+    public Bot getTelegramBot() {
+        return telegramBot;
+    }
+
+    /**
+     * @param telegramBot the telegramBot to set
+     */
+    public void setTelegramBot(Bot telegramBot) {
+        this.telegramBot = telegramBot;
+    }
+
+    /**
+     * @return Converter return the converter
+     */
+    public Converter getConverter() {
+        return converter;
+    }
+
+    /**
+     * @param converter the converter to set
+     */
+    public void setConverter(Converter converter) {
+        this.converter = converter;
+    }
+
+    /**
+     * @return ArrayList<ImageBoardThread> return the listImageBoardThreads
+     */
+    public ArrayList<ImageBoardThread> getListImageBoardThreads() {
+        return listImageBoardThreads;
+    }
+
+    /**
+     * @param listImageBoardThreads the listImageBoardThreads to set
+     */
+    public void setListImageBoardThreads(ArrayList<ImageBoardThread> listImageBoardThreads) {
+        this.listImageBoardThreads = listImageBoardThreads;
+    }
+
+    /**
+     * @return ThreadRepository return the threadRepository
+     */
+    public ThreadRepository getThreadRepository() {
+        return threadRepository;
+    }
+
+    /**
+     * @param threadRepository the threadRepository to set
+     */
+    public void setThreadRepository(ThreadRepository threadRepository) {
+        this.threadRepository = threadRepository;
+    }
+
+    /**
+     * @return MediaRepository return the mediaRepository
+     */
+    public MediaRepository getMediaRepository() {
+        return mediaRepository;
+    }
+
+    /**
+     * @param mediaRepository the mediaRepository to set
+     */
+    public void setMediaRepository(MediaRepository mediaRepository) {
+        this.mediaRepository = mediaRepository;
+    }
+
 }

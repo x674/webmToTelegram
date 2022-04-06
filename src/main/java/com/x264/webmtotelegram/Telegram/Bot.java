@@ -1,7 +1,19 @@
 package com.x264.webmtotelegram.Telegram;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayDeque;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
+import javax.annotation.PostConstruct;
+
 import com.x264.webmtotelegram.Entities.TelegramPost;
-import com.x264.webmtotelegram.ImageBoard.GetWebmFrom2ch;
+import com.x264.webmtotelegram.ImageBoard.Dvach;
 import com.x264.webmtotelegram.Repositories.MediaRepository;
 
 import org.slf4j.Logger;
@@ -10,39 +22,18 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
-import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
 import org.telegram.telegrambots.meta.api.methods.ParseMode;
 import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup;
-import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
-import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
-import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.media.InputMedia;
 import org.telegram.telegrambots.meta.api.objects.media.InputMediaVideo;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-
-import javax.annotation.PostConstruct;
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 @Component
 public class Bot extends TelegramLongPollingBot {
-    private static final Logger log = LoggerFactory.getLogger(GetWebmFrom2ch.class);
+    private static final Logger log = LoggerFactory.getLogger(Dvach.class);
     @Value("${bot.name}")
     private String username;
     @Value("${bot.token}")
@@ -87,7 +78,16 @@ public class Bot extends TelegramLongPollingBot {
                     execute(CallbackHandlers.sendInlineKeyboardStatusService(callbackQuery));
 
                 else if (callbackCommand.contains("mainMenu"))
-                    execute(CallbackHandlers.returnToMainMenu(callbackQuery));
+                    execute(CallbackHandlers.ReturnToMainMenu(callbackQuery));
+
+                else if (callbackCommand.contains("downloadAllThreads"))
+                    execute(CallbackHandlers.DownloadSettingsMessage(callbackQuery));
+
+                else if (callbackCommand.contains("filterSettings"))
+                    execute(CallbackHandlers.FilterSettingsMessage(callbackQuery));
+
+                else if (callbackCommand.contains("listThreads"))
+                    execute(CallbackHandlers.ListThreadsMenu(callbackQuery,applicationContext.getBean(Dvach.class).getListImageBoardThreads()));
 
             }
         }

@@ -7,12 +7,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ButtonsTemplates {
+
     public static InlineKeyboardMarkup mainMenuKeyboard() {
 
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
 
         List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
-        //Vertical rows
+        // Vertical rows
         List<InlineKeyboardButton> row1 = new ArrayList<>();
         List<InlineKeyboardButton> row2 = new ArrayList<>();
         List<InlineKeyboardButton> row3 = new ArrayList<>();
@@ -26,9 +27,9 @@ public class ButtonsTemplates {
         addThread.setCallbackData("addThread");
         row2.add(addThread);
 
-        InlineKeyboardButton downloadAllThreads = new InlineKeyboardButton("3. Скачать медиа из всех тредов");
-        downloadAllThreads.setCallbackData("downloadAllThreads");
-        row3.add(downloadAllThreads);
+        InlineKeyboardButton downloadAllThreadsSettings = new InlineKeyboardButton("3. Скачивание медиа из всех тредов");
+        downloadAllThreadsSettings.setCallbackData("downloadAllThreadsSettings");
+        row3.add(downloadAllThreadsSettings);
 
         InlineKeyboardButton listThreads = new InlineKeyboardButton("4. Список тредов");
         listThreads.setCallbackData("listThreads");
@@ -42,4 +43,53 @@ public class ButtonsTemplates {
         inlineKeyboardMarkup.setKeyboard(keyboard);
         return inlineKeyboardMarkup;
     }
+
+    public static InlineKeyboardMarkup DownloadSettingsKeyboard() {
+
+        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+
+        List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
+        List<InlineKeyboardButton> row1 = new ArrayList<>();
+        List<InlineKeyboardButton> row2 = new ArrayList<>();
+        List<InlineKeyboardButton> row3 = new ArrayList<>();
+
+        InlineKeyboardButton toggleDownload = new InlineKeyboardButton("Запустить выкачивание медиа в канал");
+        toggleDownload.setCallbackData("toggleDownload");
+        row1.add(toggleDownload);
+
+        InlineKeyboardButton filterThreads = new InlineKeyboardButton("Изменить фильтр заголовков тредов");
+        filterThreads.setCallbackData("filterSettings");
+        row2.add(filterThreads);
+        row3.add(MoveBack("mainMenu"));
+
+
+        keyboard.add(row1);
+        keyboard.add(row2);
+        keyboard.add(row3);
+
+        inlineKeyboardMarkup.setKeyboard(keyboard);
+        return inlineKeyboardMarkup;
+    }
+
+    public static InlineKeyboardMarkup FilterSettingsKeyboard() {
+
+        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+
+        List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
+        List<InlineKeyboardButton> row1 = new ArrayList<>();
+
+        row1.add(MoveBack("downloadAllThreadsSettings"));
+
+        keyboard.add(row1);
+
+        inlineKeyboardMarkup.setKeyboard(keyboard);
+        return inlineKeyboardMarkup;
+    }
+
+    public static InlineKeyboardButton MoveBack(String CallbackData){
+        InlineKeyboardButton moveBack = new InlineKeyboardButton("Вернуться назад");
+        moveBack.setCallbackData(CallbackData);
+        return moveBack;
+    }
+
 }
