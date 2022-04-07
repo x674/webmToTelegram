@@ -33,6 +33,7 @@ public class Dvach {
     private ArrayList<ImageBoardThread> listImageBoardThreads;
     private ThreadRepository threadRepository;
     private MediaRepository mediaRepository;
+    private boolean parseStatus = false;
 
     public Dvach(RestTemplateBuilder restTemplateBuilder, ApplicationContext applicationContext,
             ThreadRepository threadRepository, MediaRepository mediaRepository, Converter converter, Bot telegramBot) {
@@ -51,6 +52,7 @@ public class Dvach {
                 .collect(Collectors.toList());
         threadRepository.deleteAllByIdInBatch(toRemoveList);
         listImageBoardThreads = threadRepository.findAll();
+        UpdateThreads();
     }
 
     private ArrayList<ImageBoardThread> GetListThreads() {
@@ -122,21 +124,27 @@ public class Dvach {
         threadRepository.save(imageBoardThread);
     }
 
-//    @PostConstruct
     private void UpdateThreads() {
         CompletableFuture.supplyAsync(() -> {
-            listImageBoardThreads.stream()
-                    .filter(e-> 
-                        Pattern.compile(Pattern.quote("фап тред"),Pattern.CASE_INSENSITIVE).matcher(e.getTitle()).find())
-                    .forEach(imageBoardThread -> {
-                        CheckThread(imageBoardThread);
-                        try {
-                            TimeUnit.SECONDS.sleep(4);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                    });
-            return null;
+            while (true) {
+                if (parseStatus) {
+                    listImageBoardThreads.stream()
+                            // .filter(e -> Pattern.compile(Pattern.quote("webm"), Pattern.CASE_INSENSITIVE)
+                            //         .matcher(e.getTitle()).find())
+                            .forEach(imageBoardThread -> {
+                                try {
+                                    if (parseStatus) {
+                                        CheckThread(imageBoardThread);
+                                        TimeUnit.SECONDS.sleep(4);
+                                    } else {
+                                        return;
+                                    }
+                                } catch (InterruptedException e) {
+                                    e.printStackTrace();
+                                }
+                            });
+                }
+            }
         });
     }
 
@@ -208,6 +216,21 @@ public class Dvach {
      */
     public void setMediaRepository(MediaRepository mediaRepository) {
         this.mediaRepository = mediaRepository;
+    }
+
+
+    /**
+     * @return boolean return the parseStatus
+     */
+    public boolean isParseStatus() {
+        return parseStatus;
+    }
+
+    /**
+     * @param parseStatus the parseStatus to set
+     */
+    public void setParseStatus(boolean parseStatus) {
+        this.parseStatus = parseStatus;
     }
 
 }

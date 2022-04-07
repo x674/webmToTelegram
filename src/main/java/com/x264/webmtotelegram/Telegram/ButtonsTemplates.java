@@ -44,7 +44,7 @@ public class ButtonsTemplates {
         return inlineKeyboardMarkup;
     }
 
-    public static InlineKeyboardMarkup DownloadSettingsKeyboard() {
+    public static InlineKeyboardMarkup DownloadSettingsKeyboard(boolean dowloadsStatus) {
 
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
 
@@ -53,7 +53,12 @@ public class ButtonsTemplates {
         List<InlineKeyboardButton> row2 = new ArrayList<>();
         List<InlineKeyboardButton> row3 = new ArrayList<>();
 
-        InlineKeyboardButton toggleDownload = new InlineKeyboardButton("Запустить выкачивание медиа в канал");
+        String downloadStatusButton = "";
+        if (dowloadsStatus)
+            downloadStatusButton = "Остановить скачивание";
+        else
+            downloadStatusButton = "Запустить выкачивание медиа в канал";
+        InlineKeyboardButton toggleDownload = new InlineKeyboardButton(downloadStatusButton);
         toggleDownload.setCallbackData("toggleDownload");
         row1.add(toggleDownload);
 

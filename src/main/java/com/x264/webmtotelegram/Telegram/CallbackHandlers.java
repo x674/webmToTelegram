@@ -48,13 +48,13 @@ public class CallbackHandlers {
         return editMessageText;
     }
 
-    public static EditMessageText DownloadSettingsMessage(CallbackQuery callbackQuery) {
+    public static EditMessageText DownloadSettingsMessage(CallbackQuery callbackQuery, boolean dowloadsStatus) {
         EditMessageText editMessageText = new EditMessageText();
         editMessageText.setMessageId(callbackQuery.getMessage().getMessageId());
         editMessageText.setChatId(callbackQuery.getMessage().getChatId().toString());
         editMessageText.setText("Управление выгрузкой в канал");
 
-        editMessageText.setReplyMarkup(ButtonsTemplates.DownloadSettingsKeyboard());
+        editMessageText.setReplyMarkup(ButtonsTemplates.DownloadSettingsKeyboard(dowloadsStatus));
         return editMessageText;
     }
 

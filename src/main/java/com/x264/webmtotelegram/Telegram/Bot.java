@@ -42,10 +42,12 @@ public class Bot extends TelegramLongPollingBot {
     private String chatId;
     final ApplicationContext applicationContext;
     final MediaRepository mediaRepository;
+    private boolean dowloadsStatus = false;
 
     public Bot(ApplicationContext applicationContext, MediaRepository mediaRepository) {
         this.applicationContext = applicationContext;
         this.mediaRepository = mediaRepository;
+        AsyncSentMessages();
     }
 
     @Override
@@ -81,13 +83,32 @@ public class Bot extends TelegramLongPollingBot {
                     execute(CallbackHandlers.ReturnToMainMenu(callbackQuery));
 
                 else if (callbackCommand.contains("downloadAllThreads"))
-                    execute(CallbackHandlers.DownloadSettingsMessage(callbackQuery));
+                    execute(CallbackHandlers.DownloadSettingsMessage(callbackQuery, isDowloadsStatus()));
 
                 else if (callbackCommand.contains("filterSettings"))
                     execute(CallbackHandlers.FilterSettingsMessage(callbackQuery));
 
                 else if (callbackCommand.contains("listThreads"))
                     execute(CallbackHandlers.ListThreadsMenu(callbackQuery,applicationContext.getBean(Dvach.class).getListImageBoardThreads()));
+
+                else if (callbackCommand.contains("toggleDownload"))
+                {
+                    //TODO Start downloads
+                    //Status dowloads param
+                    if (isDowloadsStatus())
+                    {
+                        setDowloadsStatus(false);
+                        applicationContext.getBean(Dvach.class).setParseStatus(false);
+                    }
+                    else if (!isDowloadsStatus())
+                    {
+                        setDowloadsStatus(true);
+                        applicationContext.getBean(Dvach.class).setParseStatus(true);
+                    }
+                        
+                    execute(CallbackHandlers.DownloadSettingsMessage(callbackQuery, isDowloadsStatus()));
+                }
+                
 
             }
         }
@@ -98,47 +119,50 @@ public class Bot extends TelegramLongPollingBot {
 
     public ArrayDeque<TelegramPost> telegramPostArrayDeque = new ArrayDeque<>();
 
-    @PostConstruct
     public void AsyncSentMessages() {
-        if (!telegramPostArrayDeque.isEmpty()) {
-            TelegramPost telegramPost = telegramPostArrayDeque.getFirst();
-            CompletableFuture.supplyAsync(() -> {
-                if (telegramPost.URLVideos.size() == 1)
-                    executeAsync(SendVideo(telegramPost)).exceptionally(e -> {
-                        log.error(e.getMessage());
-                        //TODO переделать под типы исключений
-                        if (e.getMessage().contains("Too Many Requests"))
-                            SleepBySecond(30);
-                        return null;
-                    }).join();
-                else if (telegramPost.URLVideos.size() > 1) {
-                    executeAsync(SendMediaGroup(telegramPost)).exceptionally(e -> {
-                        log.error(e.getMessage());
-                        if (e.getMessage().contains("Too Many Requests"))
-                            SleepBySecond(30);
-                        return null;
-                    }).join();
-                }
-                return null;
+        CompletableFuture.supplyAsync(() -> {
+            while (true) {
+                if (dowloadsStatus) {
+                    if (!telegramPostArrayDeque.isEmpty()) {
+                        TelegramPost telegramPost = telegramPostArrayDeque.getFirst();
+                        CompletableFuture.supplyAsync(() -> {
+                            if (telegramPost.URLVideos.size() == 1)
+                                executeAsync(SendVideo(telegramPost)).exceptionally(e -> {
+                                    log.error(e.getMessage());
+                                    // TODO переделать под типы исключений
+                                    if (e.getMessage().contains("Too Many Requests"))
+                                        SleepBySecond(30);
+                                    return null;
+                                }).join();
+                            else if (telegramPost.URLVideos.size() > 1) {
+                                executeAsync(SendMediaGroup(telegramPost)).exceptionally(e -> {
+                                    log.error(e.getMessage());
+                                    if (e.getMessage().contains("Too Many Requests"))
+                                        SleepBySecond(30);
+                                    return null;
+                                }).join();
+                            }
+                            return null;
 
-            }).thenRun(() -> {
-                telegramPostArrayDeque.remove(telegramPost);
-                telegramPost.URLVideos.forEach(e->{
-                    if (!e.contains("http"))
-                        try {
-                            Files.delete(Path.of(e));
-                        } catch (IOException e1) {
-                            e1.printStackTrace();
-                        }
-                });
-                SleepBySecond(10);
-                AsyncSentMessages();
-            });
-        } else
-            CompletableFuture.runAsync(() -> {
-                SleepBySecond(10);
-                AsyncSentMessages();
-            });
+                        }).thenRun(() -> {
+                            telegramPostArrayDeque.remove(telegramPost);
+                            telegramPost.URLVideos.forEach(e -> {
+                                if (!e.contains("http"))
+                                    try {
+                                        Files.delete(Path.of(e));
+                                    } catch (IOException e1) {
+                                        e1.printStackTrace();
+                                    }
+                            });
+                            SleepBySecond(10);
+                        });
+                    } else
+                        CompletableFuture.runAsync(() -> {
+                            SleepBySecond(10);
+                        });
+                }
+            }
+        });
     }
 
     public static void SleepBySecond(long seconds) {
@@ -206,4 +230,47 @@ public class Bot extends TelegramLongPollingBot {
         sendVideo.setCaption(telegramPost.MessageURL);
         return sendVideo;
     }
+
+    /**
+     * @return String return the username
+     */
+    public String getUsername() {
+        return username;
+    }
+
+    /**
+     * @param username the username to set
+     */
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    /**
+     * @return String return the token
+     */
+    public String getToken() {
+        return token;
+    }
+
+    /**
+     * @param token the token to set
+     */
+    public void setToken(String token) {
+        this.token = token;
+    }
+
+    /**
+     * @return boolean return the dowloadsStatus
+     */
+    public boolean isDowloadsStatus() {
+        return dowloadsStatus;
+    }
+
+    /**
+     * @param dowloadsStatus the dowloadsStatus to set
+     */
+    public void setDowloadsStatus(boolean dowloadsStatus) {
+        this.dowloadsStatus = dowloadsStatus;
+    }
+
 }
