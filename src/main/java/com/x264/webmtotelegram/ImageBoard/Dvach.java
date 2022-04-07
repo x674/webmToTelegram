@@ -1,11 +1,17 @@
 package com.x264.webmtotelegram.ImageBoard;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
 import com.x264.webmtotelegram.Entities.ImageBoardThread;
 import com.x264.webmtotelegram.Entities.MediaFile;
+import com.x264.webmtotelegram.Entities.TelegramPost;
 import com.x264.webmtotelegram.Repositories.MediaRepository;
 import com.x264.webmtotelegram.Repositories.ThreadRepository;
 import com.x264.webmtotelegram.Telegram.Bot;
-import com.x264.webmtotelegram.Entities.TelegramPost;
 import com.x264.webmtotelegram.VideoUtils.Converter;
 
 import org.slf4j.Logger;
@@ -15,13 +21,6 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
-
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 @Component
 public class Dvach {
@@ -33,7 +32,7 @@ public class Dvach {
     private ArrayList<ImageBoardThread> listImageBoardThreads;
     private ThreadRepository threadRepository;
     private MediaRepository mediaRepository;
-    private boolean parseStatus = false;
+    private boolean parseStatus = true;
 
     public Dvach(RestTemplateBuilder restTemplateBuilder, ApplicationContext applicationContext,
             ThreadRepository threadRepository, MediaRepository mediaRepository, Converter converter, Bot telegramBot) {
@@ -43,16 +42,8 @@ public class Dvach {
         this.threadRepository = threadRepository;
         this.mediaRepository = mediaRepository;
 
-        var currentThreads = GetListThreads();
-        var idsRepo = threadRepository.findAllByIdThread();
-        threadRepository.saveAll(
-                currentThreads.stream().filter(e -> !idsRepo.contains(e.getIdThread())).collect(Collectors.toList()));
-        var currentIdsThreads = currentThreads.stream().map(e1 -> e1.getIdThread()).collect(Collectors.toList());
-        var toRemoveList = threadRepository.findAllByIdThread().stream().filter(e -> !currentIdsThreads.contains(e))
-                .collect(Collectors.toList());
-        threadRepository.deleteAllByIdInBatch(toRemoveList);
-        listImageBoardThreads = threadRepository.findAll();
         UpdateThreads();
+        CheckThreads();
     }
 
     private ArrayList<ImageBoardThread> GetListThreads() {
@@ -66,6 +57,19 @@ public class Dvach {
             imageBoardThreads.add(imageBoardThread);
         });
         return imageBoardThreads;
+    }
+
+    private void UpdateThreads() {
+        var currentThreads = GetListThreads();
+        var idsRepo = threadRepository.findAllByIdThread();
+        threadRepository.saveAll(
+                currentThreads.stream().filter(e -> !idsRepo.contains(e.getIdThread())).collect(Collectors.toList()));
+        var currentIdsThreads = currentThreads.stream().map(e1 -> e1.getIdThread()).collect(Collectors.toList());
+        var toRemoveList = threadRepository.findAllByIdThread().stream().filter(e -> !currentIdsThreads.contains(e))
+                .collect(Collectors.toList());
+        threadRepository.deleteAllByIdInBatch(toRemoveList);
+        listImageBoardThreads = threadRepository.findAll();
+
     }
 
     private void CheckThread(ImageBoardThread imageBoardThread) {
@@ -124,13 +128,13 @@ public class Dvach {
         threadRepository.save(imageBoardThread);
     }
 
-    private void UpdateThreads() {
+    private void CheckThreads() {
         CompletableFuture.supplyAsync(() -> {
             while (true) {
                 if (parseStatus) {
                     listImageBoardThreads.stream()
                             // .filter(e -> Pattern.compile(Pattern.quote("webm"), Pattern.CASE_INSENSITIVE)
-                            //         .matcher(e.getTitle()).find())
+                            // .matcher(e.getTitle()).find())
                             .forEach(imageBoardThread -> {
                                 try {
                                     if (parseStatus) {
@@ -143,6 +147,7 @@ public class Dvach {
                                     e.printStackTrace();
                                 }
                             });
+                    UpdateThreads();
                 }
             }
         });

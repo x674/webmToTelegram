@@ -10,8 +10,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import javax.annotation.PostConstruct;
-
 import com.x264.webmtotelegram.Entities.TelegramPost;
 import com.x264.webmtotelegram.ImageBoard.Dvach;
 import com.x264.webmtotelegram.Repositories.MediaRepository;
@@ -42,7 +40,7 @@ public class Bot extends TelegramLongPollingBot {
     private String chatId;
     final ApplicationContext applicationContext;
     final MediaRepository mediaRepository;
-    private boolean dowloadsStatus = false;
+    private boolean dowloadsStatus = true;
 
     public Bot(ApplicationContext applicationContext, MediaRepository mediaRepository) {
         this.applicationContext = applicationContext;
@@ -93,8 +91,6 @@ public class Bot extends TelegramLongPollingBot {
 
                 else if (callbackCommand.contains("toggleDownload"))
                 {
-                    //TODO Start downloads
-                    //Status dowloads param
                     if (isDowloadsStatus())
                     {
                         setDowloadsStatus(false);
@@ -105,11 +101,8 @@ public class Bot extends TelegramLongPollingBot {
                         setDowloadsStatus(true);
                         applicationContext.getBean(Dvach.class).setParseStatus(true);
                     }
-                        
                     execute(CallbackHandlers.DownloadSettingsMessage(callbackQuery, isDowloadsStatus()));
                 }
-                
-
             }
         }
         catch (TelegramApiException e) {
@@ -119,52 +112,44 @@ public class Bot extends TelegramLongPollingBot {
 
     public ArrayDeque<TelegramPost> telegramPostArrayDeque = new ArrayDeque<>();
 
-    public void AsyncSentMessages() {
+    private void AsyncSentMessages() {
         CompletableFuture.supplyAsync(() -> {
             while (true) {
                 if (dowloadsStatus) {
                     if (!telegramPostArrayDeque.isEmpty()) {
                         TelegramPost telegramPost = telegramPostArrayDeque.getFirst();
-                        CompletableFuture.supplyAsync(() -> {
-                            if (telegramPost.URLVideos.size() == 1)
-                                executeAsync(SendVideo(telegramPost)).exceptionally(e -> {
-                                    log.error(e.getMessage());
-                                    // TODO переделать под типы исключений
-                                    if (e.getMessage().contains("Too Many Requests"))
-                                        SleepBySecond(30);
-                                    return null;
-                                }).join();
-                            else if (telegramPost.URLVideos.size() > 1) {
-                                executeAsync(SendMediaGroup(telegramPost)).exceptionally(e -> {
-                                    log.error(e.getMessage());
-                                    if (e.getMessage().contains("Too Many Requests"))
-                                        SleepBySecond(30);
-                                    return null;
-                                }).join();
-                            }
-                            return null;
-
-                        }).thenRun(() -> {
-                            telegramPostArrayDeque.remove(telegramPost);
-                            telegramPost.URLVideos.forEach(e -> {
-                                if (!e.contains("http"))
-                                    try {
-                                        Files.delete(Path.of(e));
-                                    } catch (IOException e1) {
-                                        e1.printStackTrace();
-                                    }
-                            });
-                            SleepBySecond(10);
+                        if (telegramPost.URLVideos.size() == 1)
+                            executeAsync(SendVideo(telegramPost)).exceptionally(e -> {
+                                log.error(e.getMessage());
+                                if (e.getMessage().contains("Too Many Requests"))
+                                    SleepBySecond(30);
+                                return null;
+                            }).join();
+                        else if (telegramPost.URLVideos.size() > 1) {
+                            executeAsync(SendMediaGroup(telegramPost)).exceptionally(e -> {
+                                log.error(e.getMessage());
+                                if (e.getMessage().contains("Too Many Requests"))
+                                    SleepBySecond(30);
+                                return null;
+                            }).join();
+                        }
+                        telegramPostArrayDeque.remove(telegramPost);
+                        telegramPost.URLVideos.forEach(e -> {
+                            if (!e.contains("http"))
+                                try {
+                                    Files.delete(Path.of(e));
+                                } catch (IOException e1) {
+                                    e1.printStackTrace();
+                                }
                         });
-                    } else
-                        CompletableFuture.runAsync(() -> {
-                            SleepBySecond(10);
-                        });
+                        SleepBySecond(10);
+                    }
                 }
             }
         });
     }
 
+    // TODO Extract
     public static void SleepBySecond(long seconds) {
         try {
             TimeUnit.SECONDS.sleep(seconds);
