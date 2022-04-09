@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -23,6 +25,8 @@ import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.ParseMode;
 import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup;
 import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
+import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.media.InputMedia;
@@ -31,7 +35,7 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 @Component
 public class Bot extends TelegramLongPollingBot {
-    private static final Logger log = LoggerFactory.getLogger(Dvach.class);
+    private static final Logger log = LoggerFactory.getLogger(Bot.class);
     @Value("${bot.name}")
     private String username;
     @Value("${bot.token}")
@@ -40,11 +44,17 @@ public class Bot extends TelegramLongPollingBot {
     private String chatId;
     final ApplicationContext applicationContext;
     final MediaRepository mediaRepository;
-    private boolean dowloadsStatus = true;
+    private Dvach dvach;
+    private boolean downloadsStatus = true;
+    private boolean nowSetFilters = false;
+    private CallbackQuery setFilterCallbackQuery;
+    private ArrayDeque<TelegramPost> telegramPostArrayDeque;
 
-    public Bot(ApplicationContext applicationContext, MediaRepository mediaRepository) {
+    public Bot(ApplicationContext applicationContext, MediaRepository mediaRepository, Dvach dvach) {
         this.applicationContext = applicationContext;
         this.mediaRepository = mediaRepository;
+        this.dvach = dvach;
+        telegramPostArrayDeque = dvach.getTelegramPostArrayDeque();
         AsyncSentMessages();
     }
 
@@ -67,7 +77,18 @@ public class Bot extends TelegramLongPollingBot {
                     var textMessage = message.getText();
                     if (textMessage.contains("Start")) {
                         execute(CommandHandlers.sendInlineKeyboardMainMenu(message.getChatId().toString()));
+                        return;
                     }
+                }
+                if (nowSetFilters)
+                {
+                    List<String> filterWords = Arrays.asList(message.getText().split(" "));
+                    dvach.setThreadFilter(new ArrayList<>(filterWords));
+                    nowSetFilters = false;
+                    DeleteMessage deleteMessage = new DeleteMessage(message.getChatId().toString(),message.getMessageId());
+                    execute(deleteMessage);
+                    execute(CallbackHandlers.OnSettedFilter(setFilterCallbackQuery, dvach.getThreadFilter()));
+                    return;
                 }
             }
             if (update.hasCallbackQuery()) {
@@ -81,27 +102,31 @@ public class Bot extends TelegramLongPollingBot {
                     execute(CallbackHandlers.ReturnToMainMenu(callbackQuery));
 
                 else if (callbackCommand.contains("downloadAllThreads"))
-                    execute(CallbackHandlers.DownloadSettingsMessage(callbackQuery, isDowloadsStatus()));
+                    execute(CallbackHandlers.DownloadSettingsMessage(callbackQuery, isDownloadsStatus()));
 
                 else if (callbackCommand.contains("filterSettings"))
-                    execute(CallbackHandlers.FilterSettingsMessage(callbackQuery));
+                {
+                    setFilterCallbackQuery = callbackQuery;
+                    nowSetFilters = true;
+                    execute(CallbackHandlers.FilterSettingsMessage(callbackQuery, dvach.getThreadFilter()));
+                }
 
                 else if (callbackCommand.contains("listThreads"))
-                    execute(CallbackHandlers.ListThreadsMenu(callbackQuery,applicationContext.getBean(Dvach.class).getListImageBoardThreads()));
+                    execute(CallbackHandlers.ListThreadsMenu(callbackQuery,dvach.getListImageBoardThreads()));
 
                 else if (callbackCommand.contains("toggleDownload"))
                 {
-                    if (isDowloadsStatus())
+                    if (isDownloadsStatus())
                     {
-                        setDowloadsStatus(false);
+                        setDownloadsStatus(false);
                         applicationContext.getBean(Dvach.class).setParseStatus(false);
                     }
-                    else if (!isDowloadsStatus())
+                    else if (!isDownloadsStatus())
                     {
-                        setDowloadsStatus(true);
+                        setDownloadsStatus(true);
                         applicationContext.getBean(Dvach.class).setParseStatus(true);
                     }
-                    execute(CallbackHandlers.DownloadSettingsMessage(callbackQuery, isDowloadsStatus()));
+                    execute(CallbackHandlers.DownloadSettingsMessage(callbackQuery, isDownloadsStatus()));
                 }
             }
         }
@@ -110,12 +135,10 @@ public class Bot extends TelegramLongPollingBot {
         }
     }
 
-    public ArrayDeque<TelegramPost> telegramPostArrayDeque = new ArrayDeque<>();
-
     private void AsyncSentMessages() {
-        CompletableFuture.supplyAsync(() -> {
+        CompletableFuture.runAsync(() -> {
             while (true) {
-                if (dowloadsStatus) {
+                if (downloadsStatus) {
                     if (!telegramPostArrayDeque.isEmpty()) {
                         TelegramPost telegramPost = telegramPostArrayDeque.getFirst();
                         if (telegramPost.URLVideos.size() == 1)
@@ -247,15 +270,15 @@ public class Bot extends TelegramLongPollingBot {
     /**
      * @return boolean return the dowloadsStatus
      */
-    public boolean isDowloadsStatus() {
-        return dowloadsStatus;
+    public boolean isDownloadsStatus() {
+        return downloadsStatus;
     }
 
     /**
-     * @param dowloadsStatus the dowloadsStatus to set
+     * @param downloadsStatus the dowloadsStatus to set
      */
-    public void setDowloadsStatus(boolean dowloadsStatus) {
-        this.dowloadsStatus = dowloadsStatus;
+    public void setDownloadsStatus(boolean downloadsStatus) {
+        this.downloadsStatus = downloadsStatus;
     }
 
 }

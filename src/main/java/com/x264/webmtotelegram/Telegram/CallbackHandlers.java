@@ -48,6 +48,18 @@ public class CallbackHandlers {
         return editMessageText;
     }
 
+    public static EditMessageText OnSettedFilter(CallbackQuery callbackQuery, ArrayList listFilter) {
+        EditMessageText editMessageText = new EditMessageText();
+        editMessageText.setMessageId(callbackQuery.getMessage().getMessageId());
+        editMessageText.setChatId(callbackQuery.getMessage().getChatId().toString());
+        String message =  "Установлены слова:\n"+ listFilter.stream().collect(Collectors.joining("\n"));
+        editMessageText.setText(message);
+
+
+        editMessageText.setReplyMarkup(ButtonsTemplates.MoveBackKeyboard("mainMenu"));
+        return editMessageText;
+    }
+
     public static EditMessageText DownloadSettingsMessage(CallbackQuery callbackQuery, boolean dowloadsStatus) {
         EditMessageText editMessageText = new EditMessageText();
         editMessageText.setMessageId(callbackQuery.getMessage().getMessageId());
@@ -58,13 +70,21 @@ public class CallbackHandlers {
         return editMessageText;
     }
 
-    public static EditMessageText FilterSettingsMessage(CallbackQuery callbackQuery) {
+    public static EditMessageText FilterSettingsMessage(CallbackQuery callbackQuery, ArrayList listFilter) {
         EditMessageText editMessageText = new EditMessageText();
         editMessageText.setMessageId(callbackQuery.getMessage().getMessageId());
         editMessageText.setChatId(callbackQuery.getMessage().getChatId().toString());
-        editMessageText.setText("Отправь список ключевых слов, через запятую");
+        String message = "";
+        if (listFilter.size() == 0)
+            message = "Ключевые слова не заданы\n"+
+                    "Отправь список ключевых слов, через запятую";
+        else
+            message = "Текущие ключевые слова\n"+
+                    listFilter.stream().collect(Collectors.joining("\n"))+
+                    "\nОтправь список ключевых слов, через запятую";
+        editMessageText.setText(message);
 
-        editMessageText.setReplyMarkup(ButtonsTemplates.FilterSettingsKeyboard());
+        editMessageText.setReplyMarkup(ButtonsTemplates.MoveBackKeyboard("downloadAllThreadsSettings"));
         return editMessageText;
     }
 
@@ -73,7 +93,7 @@ public class CallbackHandlers {
         editMessageText.setMessageId(callbackQuery.getMessage().getMessageId());
         editMessageText.setChatId(callbackQuery.getMessage().getChatId().toString());
         editMessageText.enableHtml(true);
-        String stringThreads = "Список тредов \n\n"+ listThreads.stream().map(thread->thread.getTitle()).collect(Collectors.joining("\n\n "));
+        String stringThreads = "Список тредов \n\n"+ listThreads.stream().map(thread->thread.getTitle()).collect(Collectors.joining("\n"));
         editMessageText.setText(stringThreads.substring(0,1000));
 
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
@@ -85,7 +105,6 @@ public class CallbackHandlers {
         InlineKeyboardButton statusService = new InlineKeyboardButton("Вернуться назад");
         statusService.setCallbackData("mainMenu");
         row1.add(statusService);
-
 
         keyboard.add(row1);
 

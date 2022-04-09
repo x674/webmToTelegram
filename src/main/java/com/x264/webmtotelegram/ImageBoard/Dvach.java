@@ -1,9 +1,11 @@
 package com.x264.webmtotelegram.ImageBoard;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import com.x264.webmtotelegram.Entities.ImageBoardThread;
@@ -27,16 +29,17 @@ public class Dvach {
     private final RestTemplate restTemplate;
     private static final String host2ch = "https://2ch.hk";
     private static final Logger log = LoggerFactory.getLogger(Dvach.class);
-    private Bot telegramBot;
     private Converter converter;
     private ArrayList<ImageBoardThread> listImageBoardThreads;
     private ThreadRepository threadRepository;
     private MediaRepository mediaRepository;
     private boolean parseStatus = true;
+    private boolean restartUpdate = false;
+
+    private ArrayList<String> threadFilter = new ArrayList<>();
 
     public Dvach(RestTemplateBuilder restTemplateBuilder, ApplicationContext applicationContext,
-            ThreadRepository threadRepository, MediaRepository mediaRepository, Converter converter, Bot telegramBot) {
-        this.telegramBot = telegramBot;
+            ThreadRepository threadRepository, MediaRepository mediaRepository, Converter converter) {
         this.converter = converter;
         this.restTemplate = restTemplateBuilder.build();
         this.threadRepository = threadRepository;
@@ -121,23 +124,35 @@ public class Dvach {
                         telegramPost.ThreadName = imageBoardThread.getTitle();
                         telegramPost.MessageURL = host2ch + "/b/res/" + imageBoardThread.getIdThread() + ".html" + "#" + numMessage;
                         telegramPost.URLVideos = urlFiles;
-                        telegramBot.telegramPostArrayDeque.add(telegramPost);
+                        telegramPostArrayDeque.add(telegramPost);
                     }
                 }
         );
         threadRepository.save(imageBoardThread);
     }
 
+    private ArrayDeque<TelegramPost> telegramPostArrayDeque = new ArrayDeque<>();
+
     private void CheckThreads() {
-        CompletableFuture.supplyAsync(() -> {
+        CompletableFuture.runAsync(() -> {
             while (true) {
                 if (parseStatus) {
+                    restartUpdate = false;
                     listImageBoardThreads.stream()
-                            // .filter(e -> Pattern.compile(Pattern.quote("webm"), Pattern.CASE_INSENSITIVE)
-                            // .matcher(e.getTitle()).find())
+                            .filter(e ->
+                            {
+                                for (var word : threadFilter) {
+                                    if (Pattern.compile(Pattern.quote(word), Pattern.CASE_INSENSITIVE)
+                                            .matcher(e.getTitle()).find())
+                                        return true;
+                                    else if(threadFilter.size() == 0)
+                                        return true;
+                                }
+                                return false;
+                            })
                             .forEach(imageBoardThread -> {
                                 try {
-                                    if (parseStatus) {
+                                    if (parseStatus || !restartUpdate) {
                                         CheckThread(imageBoardThread);
                                         TimeUnit.SECONDS.sleep(4);
                                     } else {
@@ -153,74 +168,14 @@ public class Dvach {
         });
     }
 
-    /**
-     * @return Bot return the telegramBot
-     */
-    public Bot getTelegramBot() {
-        return telegramBot;
+    public ArrayDeque<TelegramPost> getTelegramPostArrayDeque() {
+        return telegramPostArrayDeque;
     }
-
-    /**
-     * @param telegramBot the telegramBot to set
-     */
-    public void setTelegramBot(Bot telegramBot) {
-        this.telegramBot = telegramBot;
-    }
-
-    /**
-     * @return Converter return the converter
-     */
-    public Converter getConverter() {
-        return converter;
-    }
-
-    /**
-     * @param converter the converter to set
-     */
-    public void setConverter(Converter converter) {
-        this.converter = converter;
-    }
-
     /**
      * @return ArrayList<ImageBoardThread> return the listImageBoardThreads
      */
     public ArrayList<ImageBoardThread> getListImageBoardThreads() {
         return listImageBoardThreads;
-    }
-
-    /**
-     * @param listImageBoardThreads the listImageBoardThreads to set
-     */
-    public void setListImageBoardThreads(ArrayList<ImageBoardThread> listImageBoardThreads) {
-        this.listImageBoardThreads = listImageBoardThreads;
-    }
-
-    /**
-     * @return ThreadRepository return the threadRepository
-     */
-    public ThreadRepository getThreadRepository() {
-        return threadRepository;
-    }
-
-    /**
-     * @param threadRepository the threadRepository to set
-     */
-    public void setThreadRepository(ThreadRepository threadRepository) {
-        this.threadRepository = threadRepository;
-    }
-
-    /**
-     * @return MediaRepository return the mediaRepository
-     */
-    public MediaRepository getMediaRepository() {
-        return mediaRepository;
-    }
-
-    /**
-     * @param mediaRepository the mediaRepository to set
-     */
-    public void setMediaRepository(MediaRepository mediaRepository) {
-        this.mediaRepository = mediaRepository;
     }
 
 
@@ -238,4 +193,12 @@ public class Dvach {
         this.parseStatus = parseStatus;
     }
 
+    public ArrayList<String> getThreadFilter() {
+        return threadFilter;
+    }
+
+    public void setThreadFilter(ArrayList<String> threadFilter) {
+        this.threadFilter = threadFilter;
+        restartUpdate = true;
+    }
 }

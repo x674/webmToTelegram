@@ -76,14 +76,14 @@ public class ButtonsTemplates {
         return inlineKeyboardMarkup;
     }
 
-    public static InlineKeyboardMarkup FilterSettingsKeyboard() {
+    public static InlineKeyboardMarkup MoveBackKeyboard(String CallbackData) {
 
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
 
         List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
         List<InlineKeyboardButton> row1 = new ArrayList<>();
 
-        row1.add(MoveBack("downloadAllThreadsSettings"));
+        row1.add(MoveBack(CallbackData));
 
         keyboard.add(row1);
 
@@ -96,5 +96,4 @@ public class ButtonsTemplates {
         moveBack.setCallbackData(CallbackData);
         return moveBack;
     }
-
 }
