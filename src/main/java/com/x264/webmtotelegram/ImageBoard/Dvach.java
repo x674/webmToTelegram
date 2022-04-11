@@ -1,9 +1,9 @@
 package com.x264.webmtotelegram.ImageBoard;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -13,8 +13,6 @@ import com.x264.webmtotelegram.Entities.MediaFile;
 import com.x264.webmtotelegram.Entities.TelegramPost;
 import com.x264.webmtotelegram.Repositories.MediaRepository;
 import com.x264.webmtotelegram.Repositories.ThreadRepository;
-import com.x264.webmtotelegram.Telegram.Bot;
-import com.x264.webmtotelegram.VideoUtils.Converter;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,7 +27,6 @@ public class Dvach {
     private final RestTemplate restTemplate;
     private static final String host2ch = "https://2ch.hk";
     private static final Logger log = LoggerFactory.getLogger(Dvach.class);
-    private Converter converter;
     private ArrayList<ImageBoardThread> listImageBoardThreads;
     private ThreadRepository threadRepository;
     private MediaRepository mediaRepository;
@@ -39,8 +36,7 @@ public class Dvach {
     private ArrayList<String> threadFilter = new ArrayList<>();
 
     public Dvach(RestTemplateBuilder restTemplateBuilder, ApplicationContext applicationContext,
-            ThreadRepository threadRepository, MediaRepository mediaRepository, Converter converter) {
-        this.converter = converter;
+            ThreadRepository threadRepository, MediaRepository mediaRepository) {
         this.restTemplate = restTemplateBuilder.build();
         this.threadRepository = threadRepository;
         this.mediaRepository = mediaRepository;
@@ -98,22 +94,16 @@ public class Dvach {
                     filesList.forEach(file -> {
                         String fileType = (String) file.get("name");
                         String hash = (String) file.get("md5");
-                        String name = (String) file.get("name");
-                        String fullName = (String) file.get("fullname");
-                        if (mediaRepository.existsById(hash))
-                            return;
-                        if (fileType.contains("mp4")) {
+                        if (fileType.contains("mp4") || fileType.contains("webm")) {
+                            if (mediaRepository.existsById(hash))
+                                return;
+                            String name = (String) file.get("name");
+                            String fullName = (String) file.get("fullname");
                             var mediaFile = new MediaFile(hash, name, fullName);
                             mediaRepository.save(mediaFile);
                             imageBoardThread.addMediaFile(mediaFile);
                             urlFiles.add(host2ch + file.get("path"));
-                            // urlFiles.add(Downloader.DownloadFile(host2ch + file.get("path")));
-                        } else if (fileType.contains("webm")) {
-                            var mediaFile = new MediaFile(hash, name, fullName);
-                            var filePath = converter.ConvertWebmToMP4(host2ch + file.get("path"));
-                            mediaRepository.save(mediaFile);
-                            imageBoardThread.addMediaFile(mediaFile);
-                            urlFiles.add(filePath.getAbsolutePath());
+
                         }
                     });
 
@@ -131,44 +121,53 @@ public class Dvach {
         threadRepository.save(imageBoardThread);
     }
 
-    private ArrayDeque<TelegramPost> telegramPostArrayDeque = new ArrayDeque<>();
+    private volatile ConcurrentLinkedDeque<TelegramPost> telegramPostArrayDeque = new ConcurrentLinkedDeque<>();
 
     private void CheckThreads() {
         CompletableFuture.runAsync(() -> {
             while (true) {
+
                 if (parseStatus) {
                     restartUpdate = false;
                     listImageBoardThreads.stream()
-                            .filter(e ->
-                            {
-                                for (var word : threadFilter) {
-                                    if (Pattern.compile(Pattern.quote(word), Pattern.CASE_INSENSITIVE)
-                                            .matcher(e.getTitle()).find())
-                                        return true;
-                                    else if(threadFilter.size() == 0)
-                                        return true;
+                            .filter(e -> {
+                                if (threadFilter.size() > 0) {
+                                    for (var word : threadFilter) {
+                                        if (Pattern.compile(Pattern.quote(word), Pattern.CASE_INSENSITIVE)
+                                                .matcher(e.getTitle()).find())
+                                            return true;
+                                    }
+                                } else if (threadFilter.size() == 0) {
+                                    return true;
                                 }
                                 return false;
                             })
                             .forEach(imageBoardThread -> {
-                                try {
-                                    if (parseStatus || !restartUpdate) {
-                                        CheckThread(imageBoardThread);
+
+                                if (parseStatus || !restartUpdate) {
+                                    CheckThread(imageBoardThread);
+                                    try {
                                         TimeUnit.SECONDS.sleep(4);
-                                    } else {
-                                        return;
+                                    } catch (InterruptedException e1) {
+                                        e1.printStackTrace();
                                     }
-                                } catch (InterruptedException e) {
-                                    e.printStackTrace();
+                                } else {
+                                    return;
                                 }
+
                             });
+                    try {
+                        TimeUnit.SECONDS.sleep(15);
+                    } catch (InterruptedException e1) {
+                        e1.printStackTrace();
+                    }
                     UpdateThreads();
                 }
             }
         });
     }
 
-    public ArrayDeque<TelegramPost> getTelegramPostArrayDeque() {
+    public ConcurrentLinkedDeque<TelegramPost> getTelegramPostArrayDeque() {
         return telegramPostArrayDeque;
     }
     /**

@@ -4,17 +4,18 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.x264.webmtotelegram.Entities.TelegramPost;
 import com.x264.webmtotelegram.ImageBoard.Dvach;
 import com.x264.webmtotelegram.Repositories.MediaRepository;
+import com.x264.webmtotelegram.VideoUtils.Converter;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,16 +45,18 @@ public class Bot extends TelegramLongPollingBot {
     private String chatId;
     final ApplicationContext applicationContext;
     final MediaRepository mediaRepository;
+    private Converter converter;
     private Dvach dvach;
     private boolean downloadsStatus = true;
     private boolean nowSetFilters = false;
     private CallbackQuery setFilterCallbackQuery;
-    private ArrayDeque<TelegramPost> telegramPostArrayDeque;
+    private ConcurrentLinkedDeque<TelegramPost> telegramPostArrayDeque;
 
-    public Bot(ApplicationContext applicationContext, MediaRepository mediaRepository, Dvach dvach) {
+    public Bot(ApplicationContext applicationContext, MediaRepository mediaRepository, Converter converter, Dvach dvach) {
         this.applicationContext = applicationContext;
         this.mediaRepository = mediaRepository;
         this.dvach = dvach;
+        this.converter = converter;
         telegramPostArrayDeque = dvach.getTelegramPostArrayDeque();
         AsyncSentMessages();
     }
@@ -141,6 +144,13 @@ public class Bot extends TelegramLongPollingBot {
                 if (downloadsStatus) {
                     if (!telegramPostArrayDeque.isEmpty()) {
                         TelegramPost telegramPost = telegramPostArrayDeque.getFirst();
+                        for (int index = 0; index < telegramPost.URLVideos.size(); index++) {
+                            if (telegramPost.URLVideos.get(index).contains("webm")) {
+                                File filePath = converter.ConvertWebmToMP4(telegramPost.URLVideos.get(index));
+                                telegramPost.URLVideos.set(index, filePath.getAbsolutePath());
+                            }
+                        }
+
                         if (telegramPost.URLVideos.size() == 1)
                             executeAsync(SendVideo(telegramPost)).exceptionally(e -> {
                                 log.error(e.getMessage());
