@@ -1,4 +1,5 @@
 plugins {
+    id "com.google.cloud.tools.jib" version "3.2.1"
     id 'org.springframework.boot' version '2.6.6'
     id 'io.spring.dependency-management' version '1.0.11.RELEASE'
     id 'java'
@@ -8,10 +9,30 @@ group = 'com.x264'
 version = '0.0.1-SNAPSHOT'
 sourceCompatibility = '17'
 
+jib {
+    from {
+        image = "openjdk"
+    platforms {
+    platform {
+      architecture = 'arm64'
+      os = 'linux'
+            }
+        }
+    }
+   to {
+       image = "webm-to-telegram"
+       
+   }
+   container {
+        ports = ['8080']
+   }
+}
 repositories {
     mavenCentral()
 }
-
+jar {
+    enabled = false
+}
 dependencies {
 
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'

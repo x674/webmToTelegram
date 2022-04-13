@@ -20,7 +20,7 @@ import java.util.Arrays;
 
 @Component
 public class Converter {
-    public static final String PATH_SAVE = System.getProperty("user.dir") + "/";
+    public static final String PATH_SAVE = System.getProperty("user.dir") + File.separator;
     private static final Logger log = LoggerFactory.getLogger(Converter.class);
     private Encoder encoder;
     String VIDEO_ENCODER = "libx264";
@@ -56,21 +56,23 @@ public class Converter {
         attrs.setVideoAttributes(video);
 
         // Out file
-        File target = null;
         var fileName = Path.of(PATH_SAVE + URLVideo.substring(URLVideo.lastIndexOf("/") + 1) + ".mp4");
 
+        if (Files.exists(fileName))
+        {
+            return fileName.toFile();
+        }
+
+        File target = null;
         try {
-            if (Files.notExists(fileName)) {
-                target = Files.createFile(fileName).toFile();
-                try {
-                    encoder.encode(new MultimediaObject(urlVideo), target, attrs);
-                } catch (EncoderException e) {
-                    e.printStackTrace();
-                }
-            } else {
-                target = fileName.toFile();
-            }
-        } catch (IOException e) {
+            target = Files.createFile(fileName).toFile();
+        } catch (IOException e1) {
+            e1.printStackTrace();
+        }
+
+        try {
+            encoder.encode(new MultimediaObject(urlVideo), target, attrs);
+        } catch (EncoderException e) {
             e.printStackTrace();
         }
 
