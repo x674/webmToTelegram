@@ -83,7 +83,7 @@ public class Bot extends TelegramLongPollingBot {
                         return;
                     }
                 }
-                if (nowSetFilters)
+                else if (nowSetFilters)
                 {
                     List<String> filterWords = Arrays.asList(message.getText().split(" "));
                     dvach.setThreadFilter(new ArrayList<>(filterWords));
@@ -93,6 +93,12 @@ public class Bot extends TelegramLongPollingBot {
                     execute(CallbackHandlers.OnSettedFilter(setFilterCallbackQuery, dvach.getThreadFilter()));
                     return;
                 }
+                //When receiveing link to a thread, download it
+                //TODO Refine the filter
+                else if (message.getText().contains("2ch.hk")){
+                    //
+                }
+
             }
             if (update.hasCallbackQuery()) {
                 var callbackQuery = update.getCallbackQuery();

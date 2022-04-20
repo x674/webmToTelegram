@@ -2,6 +2,7 @@ package com.x264.webmtotelegram.ImageBoard;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.TimeUnit;
@@ -24,7 +25,7 @@ import org.springframework.web.client.RestTemplate;
 
 @Component
 public class Dvach {
-    private final RestTemplate restTemplate;
+private final RestTemplate restTemplate;
     private static final String host2ch = "https://2ch.hk";
     private static final Logger log = LoggerFactory.getLogger(Dvach.class);
     private ArrayList<ImageBoardThread> listImageBoardThreads;
@@ -32,6 +33,7 @@ public class Dvach {
     private MediaRepository mediaRepository;
     private boolean parseStatus = true;
     private boolean restartUpdate = false;
+    private volatile ConcurrentLinkedDeque<TelegramPost> telegramPostArrayDeque = new ConcurrentLinkedDeque<>();
 
     private ArrayList<String> threadFilter = new ArrayList<>();
 
@@ -59,12 +61,12 @@ public class Dvach {
     }
 
     private void UpdateThreads() {
-        var currentThreads = GetListThreads();
-        var idsRepo = threadRepository.findAllByIdThread();
+        ArrayList<ImageBoardThread> currentThreads = GetListThreads();
+        ArrayList<Long> idsRepo = threadRepository.findAllByIdThread();
         threadRepository.saveAll(
                 currentThreads.stream().filter(e -> !idsRepo.contains(e.getIdThread())).collect(Collectors.toList()));
-        var currentIdsThreads = currentThreads.stream().map(e1 -> e1.getIdThread()).collect(Collectors.toList());
-        var toRemoveList = threadRepository.findAllByIdThread().stream().filter(e -> !currentIdsThreads.contains(e))
+        List<Long> currentIdsThreads = currentThreads.stream().map(e1 -> e1.getIdThread()).collect(Collectors.toList());
+        List<Long> toRemoveList = threadRepository.findAllByIdThread().stream().filter(e -> !currentIdsThreads.contains(e))
                 .collect(Collectors.toList());
         threadRepository.deleteAllByIdInBatch(toRemoveList);
         listImageBoardThreads = threadRepository.findAll();
@@ -121,7 +123,6 @@ public class Dvach {
         threadRepository.save(imageBoardThread);
     }
 
-    private volatile ConcurrentLinkedDeque<TelegramPost> telegramPostArrayDeque = new ConcurrentLinkedDeque<>();
 
     private void CheckThreads() {
         CompletableFuture.runAsync(() -> {
