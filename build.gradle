@@ -1,5 +1,4 @@
 plugins {
-    id "com.google.cloud.tools.jib" version "3.2.1"
     id 'org.springframework.boot' version '2.6.6'
     id 'io.spring.dependency-management' version '1.0.11.RELEASE'
     id 'java'
@@ -9,30 +8,13 @@ group = 'com.x264'
 version = '0.0.1-SNAPSHOT'
 sourceCompatibility = '17'
 
-jib {
-    from {
-        image = "openjdk"
-    platforms {
-    platform {
-      architecture = 'arm64'
-      os = 'linux'
-            }
-        }
-    }
-   to {
-       image = "webm-to-telegram"
-       
-   }
-   container {
-        ports = ['8080']
-   }
-}
 repositories {
     mavenCentral()
 }
 jar {
     enabled = false
 }
+
 dependencies {
 
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
@@ -42,11 +24,8 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 
     runtimeOnly 'com.h2database:h2'
-    implementation 'org.telegram:telegrambots-spring-boot-starter:5.7.1'
-    implementation 'ws.schild:jave-core:3.2.0'
-    implementation 'ws.schild:jave-nativebin-linux-arm64:3.2.0'
-    implementation 'ws.schild:jave-nativebin-win64:3.2.0'
-
+    implementation 'org.telegram:telegrambots-spring-boot-starter:6.0.1'
+    implementation 'ws.schild:jave-all-deps:3.3.1'
 }
 
 test {
