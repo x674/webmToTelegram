@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.x264.webmtotelegram.Entities.TelegramPost;
-import com.x264.webmtotelegram.ImageBoard.Dvach;
+import com.x264.webmtotelegram.ImageBoard.Requests;
 import com.x264.webmtotelegram.Repositories.MediaRepository;
 import com.x264.webmtotelegram.VideoUtils.Converter;
 
@@ -46,13 +46,13 @@ public class Bot extends TelegramLongPollingBot {
     final ApplicationContext applicationContext;
     final MediaRepository mediaRepository;
     private Converter converter;
-    private Dvach dvach;
+    private Requests dvach;
     private boolean downloadsStatus = true;
     private boolean nowSetFilters = false;
     private CallbackQuery setFilterCallbackQuery;
     private ConcurrentLinkedDeque<TelegramPost> telegramPostArrayDeque;
 
-    public Bot(ApplicationContext applicationContext, MediaRepository mediaRepository, Converter converter, Dvach dvach) {
+    public Bot(ApplicationContext applicationContext, MediaRepository mediaRepository, Converter converter, Requests dvach) {
         this.applicationContext = applicationContext;
         this.mediaRepository = mediaRepository;
         this.dvach = dvach;
@@ -128,12 +128,12 @@ public class Bot extends TelegramLongPollingBot {
                     if (isDownloadsStatus())
                     {
                         setDownloadsStatus(false);
-                        applicationContext.getBean(Dvach.class).setParseStatus(false);
+                        applicationContext.getBean(Requests.class).setParseStatus(false);
                     }
                     else if (!isDownloadsStatus())
                     {
                         setDownloadsStatus(true);
-                        applicationContext.getBean(Dvach.class).setParseStatus(true);
+                        applicationContext.getBean(Requests.class).setParseStatus(true);
                     }
                     execute(CallbackHandlers.DownloadSettingsMessage(callbackQuery, isDownloadsStatus()));
                 }

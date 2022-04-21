@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 import com.x264.webmtotelegram.Entities.ImageBoardThread;
 import com.x264.webmtotelegram.Entities.MediaFile;
 import com.x264.webmtotelegram.Entities.TelegramPost;
+import com.x264.webmtotelegram.ImageBoard.Dvach.Rest.Catalog;
 import com.x264.webmtotelegram.Repositories.MediaRepository;
 import com.x264.webmtotelegram.Repositories.ThreadRepository;
 
@@ -22,12 +23,15 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.ExchangeStrategies;
+import org.springframework.web.reactive.function.client.WebClient;
 
 @Component
-public class Dvach {
+public class Requests {
 private final RestTemplate restTemplate;
     private static final String host2ch = "https://2ch.hk";
-    private static final Logger log = LoggerFactory.getLogger(Dvach.class);
+    private static final Logger log = LoggerFactory.getLogger(Requests.class);
+    private final WebClient webClient;
     private ArrayList<ImageBoardThread> listImageBoardThreads;
     private ThreadRepository threadRepository;
     private MediaRepository mediaRepository;
@@ -37,41 +41,52 @@ private final RestTemplate restTemplate;
 
     private ArrayList<String> threadFilter = new ArrayList<>();
 
-    public Dvach(RestTemplateBuilder restTemplateBuilder, ApplicationContext applicationContext,
+    public Requests(RestTemplateBuilder restTemplateBuilder, ApplicationContext applicationContext,
             ThreadRepository threadRepository, MediaRepository mediaRepository) {
         this.restTemplate = restTemplateBuilder.build();
         this.threadRepository = threadRepository;
         this.mediaRepository = mediaRepository;
-
-        UpdateThreads();
-        CheckThreads();
+        webClient = WebClient.builder().exchangeStrategies(ExchangeStrategies.builder()
+        .codecs(configurer -> configurer
+                  .defaultCodecs()
+                  .maxInMemorySize(16 * 1024 * 1024))
+                .build()).baseUrl(host2ch).build();
+        SendRequest();
+        // UpdateThreads();
+        // CheckThreads();
+    }
+    private void SendRequest()
+    {
+        
+        var catalog = webClient.get().uri("/b/catalog.json").retrieve().bodyToMono(Catalog.class).block();
+        System.out.println(catalog);
     }
 
-    private ArrayList<ImageBoardThread> GetListThreads() {
-        LinkedHashMap catalog = this.restTemplate.getForObject(host2ch + "/b/catalog.json", LinkedHashMap.class);
-        ArrayList<LinkedHashMap> arrayThreads = (ArrayList) catalog.get("threads");
-        ArrayList<ImageBoardThread> imageBoardThreads = new ArrayList<>();
-        arrayThreads.forEach(e -> {
-            ImageBoardThread imageBoardThread = new ImageBoardThread();
-            imageBoardThread.setIdThread(Long.parseLong((String) e.get("num")));
-            imageBoardThread.setTitle((String) e.get("subject"));
-            imageBoardThreads.add(imageBoardThread);
-        });
-        return imageBoardThreads;
-    }
+    // private ArrayList<ImageBoardThread> GetListThreads() {
+    //     LinkedHashMap catalog = this.restTemplate.getForObject(host2ch + "/b/catalog.json", LinkedHashMap.class);
+    //     ArrayList<LinkedHashMap> arrayThreads = (ArrayList) catalog.get("threads");
+    //     ArrayList<ImageBoardThread> imageBoardThreads = new ArrayList<>();
+    //     arrayThreads.forEach(e -> {
+    //         ImageBoardThread imageBoardThread = new ImageBoardThread();
+    //         imageBoardThread.setIdThread(Long.parseLong((String) e.get("num")));
+    //         imageBoardThread.setTitle((String) e.get("subject"));
+    //         imageBoardThreads.add(imageBoardThread);
+    //     });
+    //     return imageBoardThreads;
+    // }
 
-    private void UpdateThreads() {
-        ArrayList<ImageBoardThread> currentThreads = GetListThreads();
-        ArrayList<Long> idsRepo = threadRepository.findAllByIdThread();
-        threadRepository.saveAll(
-                currentThreads.stream().filter(e -> !idsRepo.contains(e.getIdThread())).collect(Collectors.toList()));
-        List<Long> currentIdsThreads = currentThreads.stream().map(e1 -> e1.getIdThread()).collect(Collectors.toList());
-        List<Long> toRemoveList = threadRepository.findAllByIdThread().stream().filter(e -> !currentIdsThreads.contains(e))
-                .collect(Collectors.toList());
-        threadRepository.deleteAllByIdInBatch(toRemoveList);
-        listImageBoardThreads = threadRepository.findAll();
+    // private void UpdateThreads() {
+    //     ArrayList<ImageBoardThread> currentThreads = GetListThreads();
+    //     ArrayList<Long> idsRepo = threadRepository.findAllByIdThread();
+    //     threadRepository.saveAll(
+    //             currentThreads.stream().filter(e -> !idsRepo.contains(e.getIdThread())).collect(Collectors.toList()));
+    //     List<Long> currentIdsThreads = currentThreads.stream().map(e1 -> e1.getIdThread()).collect(Collectors.toList());
+    //     List<Long> toRemoveList = threadRepository.findAllByIdThread().stream().filter(e -> !currentIdsThreads.contains(e))
+    //             .collect(Collectors.toList());
+    //     threadRepository.deleteAllByIdInBatch(toRemoveList);
+    //     listImageBoardThreads = threadRepository.findAll();
 
-    }
+    // }
 
     private void CheckThread(ImageBoardThread imageBoardThread) {
         log.info("Check thread " + imageBoardThread.getTitle());
@@ -162,7 +177,7 @@ private final RestTemplate restTemplate;
                     } catch (InterruptedException e1) {
                         e1.printStackTrace();
                     }
-                    UpdateThreads();
+                    //UpdateThreads();
                 }
             }
         });

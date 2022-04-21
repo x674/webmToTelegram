@@ -8,6 +8,7 @@ This project use [Telegram Bot Java Library](https://github.com/rubenlagus/Teleg
 
 ## Task list
 - [ ] Send a link to the thread bot and download all media
+- [ ] Thumbnail telegram
 - [ ] Remove the bindig to the board "b"
 - [ ] List of threads (clickable list of threads with inline keyboard pagination)
 - [ ] Service status
