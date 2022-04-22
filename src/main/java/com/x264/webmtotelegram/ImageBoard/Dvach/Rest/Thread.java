@@ -2,35 +2,23 @@ package com.x264.webmtotelegram.ImageBoard.Dvach.Rest;
 
 import java.util.ArrayList;
 import java.util.List;
-import javax.annotation.processing.Generated;
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
-@JsonPropertyOrder({
-    "banned",
-    "closed",
-    "comment",
-    "date",
-    "email",
-    "endless",
-    "files",
-    "files_count",
-    "lasthit",
-    "name",
-    "num",
-    "op",
-    "parent",
-    "posts_count",
-    "sticky",
-    "subject",
-    "tags",
-    "timestamp",
-    "trip"
-})
-@Generated("jsonschema2pojo")
 public class Thread {
+
+    @JsonProperty("posts")
+    private List<Post> posts = new ArrayList<Post>();
+
+    @JsonProperty("posts")
+    public List<Post> getPosts() {
+        return posts;
+    }
+
+    @JsonProperty("posts")
+    public void setPosts(List<Post> posts) {
+        this.posts = posts;
+    }
+
 
     @JsonProperty("banned")
     private Integer banned;

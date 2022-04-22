@@ -1,18 +1,21 @@
 package com.x264.webmtotelegram.ImageBoard;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import com.x264.webmtotelegram.Entities.ImageBoardThread;
 import com.x264.webmtotelegram.Entities.MediaFile;
 import com.x264.webmtotelegram.Entities.TelegramPost;
 import com.x264.webmtotelegram.ImageBoard.Dvach.Rest.Catalog;
+import com.x264.webmtotelegram.ImageBoard.Dvach.Rest.Thread;
+import com.x264.webmtotelegram.ImageBoard.Dvach.Rest.ThreadPosts;
 import com.x264.webmtotelegram.Repositories.MediaRepository;
 import com.x264.webmtotelegram.Repositories.ThreadRepository;
 
@@ -20,11 +23,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.ApplicationContext;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.ExchangeStrategies;
 import org.springframework.web.reactive.function.client.WebClient;
+
+import javax.validation.constraints.NotNull;
 
 @Component
 public class Requests {
@@ -39,7 +46,7 @@ private final RestTemplate restTemplate;
     private boolean restartUpdate = false;
     private volatile ConcurrentLinkedDeque<TelegramPost> telegramPostArrayDeque = new ConcurrentLinkedDeque<>();
 
-    private ArrayList<String> threadFilter = new ArrayList<>();
+    private List<String> filterWords = Arrays.asList("WEBM");
 
     public Requests(RestTemplateBuilder restTemplateBuilder, ApplicationContext applicationContext,
             ThreadRepository threadRepository, MediaRepository mediaRepository) {
@@ -51,29 +58,39 @@ private final RestTemplate restTemplate;
                   .defaultCodecs()
                   .maxInMemorySize(16 * 1024 * 1024))
                 .build()).baseUrl(host2ch).build();
-        SendRequest();
+        GetCatalog("b");
         // UpdateThreads();
         // CheckThreads();
     }
-    private void SendRequest()
-    {
-        
-        var catalog = webClient.get().uri("/b/catalog.json").retrieve().bodyToMono(Catalog.class).block();
-        System.out.println(catalog);
+
+    private Predicate<Thread> threadFilter = thread -> {
+        if (filterWords.size() > 0) {
+            for (var word : filterWords) {
+                if (Pattern.compile(Pattern.quote(word), Pattern.CASE_INSENSITIVE)
+                        .matcher(thread.getSubject()).find())
+                    return true;
+            }
+        } else {
+            return true;
+        }
+        return false;
+    };
+
+    private Catalog GetCatalog(@NotNull String board) {
+        return webClient.get()
+                .uri(uriBuilder -> uriBuilder.path("/{board}/catalog.json").build(board))
+                .retrieve()
+                .onStatus(HttpStatus::is4xxClientError, ClientResponse::createException)
+                .bodyToMono(Catalog.class).block();
     }
 
-    // private ArrayList<ImageBoardThread> GetListThreads() {
-    //     LinkedHashMap catalog = this.restTemplate.getForObject(host2ch + "/b/catalog.json", LinkedHashMap.class);
-    //     ArrayList<LinkedHashMap> arrayThreads = (ArrayList) catalog.get("threads");
-    //     ArrayList<ImageBoardThread> imageBoardThreads = new ArrayList<>();
-    //     arrayThreads.forEach(e -> {
-    //         ImageBoardThread imageBoardThread = new ImageBoardThread();
-    //         imageBoardThread.setIdThread(Long.parseLong((String) e.get("num")));
-    //         imageBoardThread.setTitle((String) e.get("subject"));
-    //         imageBoardThreads.add(imageBoardThread);
-    //     });
-    //     return imageBoardThreads;
-    // }
+    private ThreadPosts GetThreadPosts(@NotNull String board, @NotNull String numThread) {
+        return webClient.get()
+                .uri(uriBuilder -> uriBuilder.path("/{board}/res/{idThread}.json").build(board, numThread))
+                .retrieve()
+                .onStatus(HttpStatus::is4xxClientError, ClientResponse::createException)
+                .bodyToMono(ThreadPosts.class).block();
+    }
 
     // private void UpdateThreads() {
     //     ArrayList<ImageBoardThread> currentThreads = GetListThreads();
@@ -147,13 +164,13 @@ private final RestTemplate restTemplate;
                     restartUpdate = false;
                     listImageBoardThreads.stream()
                             .filter(e -> {
-                                if (threadFilter.size() > 0) {
-                                    for (var word : threadFilter) {
+                                if (filterWords.size() > 0) {
+                                    for (var word : filterWords) {
                                         if (Pattern.compile(Pattern.quote(word), Pattern.CASE_INSENSITIVE)
                                                 .matcher(e.getTitle()).find())
                                             return true;
                                     }
-                                } else if (threadFilter.size() == 0) {
+                                } else if (filterWords.size() == 0) {
                                     return true;
                                 }
                                 return false;
@@ -208,12 +225,12 @@ private final RestTemplate restTemplate;
         this.parseStatus = parseStatus;
     }
 
-    public ArrayList<String> getThreadFilter() {
-        return threadFilter;
+    public List<String> getFilterWords() {
+        return filterWords;
     }
 
-    public void setThreadFilter(ArrayList<String> threadFilter) {
-        this.threadFilter = threadFilter;
+    public void setFilterWords(List<String> filterWords) {
+        this.filterWords = filterWords;
         restartUpdate = true;
     }
 }

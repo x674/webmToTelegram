@@ -86,11 +86,11 @@ public class Bot extends TelegramLongPollingBot {
                 else if (nowSetFilters)
                 {
                     List<String> filterWords = Arrays.asList(message.getText().split(" "));
-                    dvach.setThreadFilter(new ArrayList<>(filterWords));
+                    dvach.setFilterWords(new ArrayList<>(filterWords));
                     nowSetFilters = false;
                     DeleteMessage deleteMessage = new DeleteMessage(message.getChatId().toString(),message.getMessageId());
                     execute(deleteMessage);
-                    execute(CallbackHandlers.OnSettedFilter(setFilterCallbackQuery, dvach.getThreadFilter()));
+                    execute(CallbackHandlers.OnSettedFilter(setFilterCallbackQuery, dvach.getFilterWords()));
                     return;
                 }
                 //When receiveing link to a thread, download it
@@ -117,7 +117,7 @@ public class Bot extends TelegramLongPollingBot {
                 {
                     setFilterCallbackQuery = callbackQuery;
                     nowSetFilters = true;
-                    execute(CallbackHandlers.FilterSettingsMessage(callbackQuery, dvach.getThreadFilter()));
+                    execute(CallbackHandlers.FilterSettingsMessage(callbackQuery, dvach.getFilterWords()));
                 }
 
                 else if (callbackCommand.contains("listThreads"))

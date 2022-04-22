@@ -48,7 +48,7 @@ public class CallbackHandlers {
         return editMessageText;
     }
 
-    public static EditMessageText OnSettedFilter(CallbackQuery callbackQuery, ArrayList listFilter) {
+    public static EditMessageText OnSettedFilter(CallbackQuery callbackQuery, List listFilter) {
         EditMessageText editMessageText = new EditMessageText();
         editMessageText.setMessageId(callbackQuery.getMessage().getMessageId());
         editMessageText.setChatId(callbackQuery.getMessage().getChatId().toString());
@@ -70,7 +70,7 @@ public class CallbackHandlers {
         return editMessageText;
     }
 
-    public static EditMessageText FilterSettingsMessage(CallbackQuery callbackQuery, ArrayList listFilter) {
+    public static EditMessageText FilterSettingsMessage(CallbackQuery callbackQuery, List listFilter) {
         EditMessageText editMessageText = new EditMessageText();
         editMessageText.setMessageId(callbackQuery.getMessage().getMessageId());
         editMessageText.setChatId(callbackQuery.getMessage().getChatId().toString());
