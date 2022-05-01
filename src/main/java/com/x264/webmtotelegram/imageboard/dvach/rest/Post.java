@@ -1,4 +1,4 @@
-package com.x264.webmtotelegram.ImageBoard.Dvach.Rest;
+package com.x264.webmtotelegram.imageboard.dvach.rest;
 
 import java.util.ArrayList;
 import java.util.List;

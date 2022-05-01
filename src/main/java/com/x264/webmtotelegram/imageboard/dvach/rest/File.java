@@ -1,4 +1,4 @@
-package com.x264.webmtotelegram.ImageBoard.Dvach.Rest;
+package com.x264.webmtotelegram.imageboard.dvach.rest;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
