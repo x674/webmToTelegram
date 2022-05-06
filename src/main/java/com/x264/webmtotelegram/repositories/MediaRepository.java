@@ -1,6 +1,6 @@
-package com.x264.webmtotelegram.Repositories;
+package com.x264.webmtotelegram.repositories;
 
-import com.x264.webmtotelegram.Entities.MediaFile;
+import com.x264.webmtotelegram.entities.MediaFile;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 

@@ -7,13 +7,13 @@ import com.x264.webmtotelegram.imageboard.dvach.rest.Thread;
 public class URLBuilder {
     private URLBuilder(){}
     
-    public static String buildMediaURL(Thread thread, File file){
-        return Requests.HOSTNAME + "/b"+ thread.getBoard() +"/res/" + file.getPath();
+    public static String buildMediaURL(String board, Thread thread, File file){
+        return Requests.HOSTNAME + file.getPath();
     }
     
 
-    public static String buildPostURL(Thread thread, Post post){
-        return Requests.HOSTNAME + "/b/res/" + thread.getNum()+ ".html" + "#" + post.getNum();
+    public static String buildPostURL(String board, Thread thread, Post post){
+        return Requests.HOSTNAME + "/"+board+ "/res/" + thread.getNum()+ ".html" + "#" + post.getNum();
     }
     
 }

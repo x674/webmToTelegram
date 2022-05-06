@@ -1,4 +1,4 @@
-package com.x264.webmtotelegram.Telegram.Entities;
+package com.x264.webmtotelegram.telegram.entities;
 
 import java.util.List;
 
@@ -7,9 +7,9 @@ public class TelegramPost {
     private String ThreadName;
     private String MessageURL;
     
-    TelegramPost(List<String> URLVideos,
-    String ThreadName,
-    String MessageURL)
+     public TelegramPost(List<String> URLVideos,
+                         String ThreadName,
+                         String MessageURL)
     {
         this.URLVideos = URLVideos;
         this.ThreadName = ThreadName;

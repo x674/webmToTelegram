@@ -1,4 +1,4 @@
-package com.x264.webmtotelegram.VideoUtils;
+package com.x264.webmtotelegram.videoutils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

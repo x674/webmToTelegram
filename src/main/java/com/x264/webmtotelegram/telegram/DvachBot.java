@@ -1,22 +1,22 @@
-package com.x264.webmtotelegram.Telegram;
+package com.x264.webmtotelegram.telegram;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.annotation.PostConstruct;
 
-import com.x264.webmtotelegram.Repositories.MediaRepository;
-import com.x264.webmtotelegram.Telegram.Entities.TelegramPost;
-import com.x264.webmtotelegram.VideoUtils.Converter;
+import com.x264.webmtotelegram.repositories.MediaRepository;
+import com.x264.webmtotelegram.telegram.entities.TelegramPost;
+import com.x264.webmtotelegram.videoutils.Converter;
 import com.x264.webmtotelegram.imageboard.dvach.Requests;
 import com.x264.webmtotelegram.imageboard.dvach.URLBuilder;
 
@@ -40,6 +40,9 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 @Component
 public class DvachBot extends TelegramLongPollingBot {
     private static final Logger log = LoggerFactory.getLogger(DvachBot.class);
+    private String board = "b";
+    private List<String> fileExtensions = Arrays.asList("webm", "mp4");
+    private List<String> threadFilterWords = Arrays.asList("webm", "mp4", "тикток","тик-ток");
     @Value("${bot.name}")
     private String username;
     @Value("${bot.token}")
@@ -49,11 +52,11 @@ public class DvachBot extends TelegramLongPollingBot {
     final ApplicationContext applicationContext;
     final MediaRepository mediaRepository;
     private Converter converter;
-    private Requests dvachRequests;
+    private final Requests dvachRequests;
     private boolean downloadsStatus = true;
     private boolean nowSetFilters = false;
     private CallbackQuery setFilterCallbackQuery;
-    private ConcurrentLinkedDeque<TelegramPost> telegramPostArrayDeque = new ConcurrentLinkedDeque<>();
+    private volatile ConcurrentLinkedDeque<TelegramPost> telegramPostArrayDeque = new ConcurrentLinkedDeque<>();
     private boolean parseStatus = true;
     private boolean restartUpdate;
 
@@ -113,8 +116,8 @@ public class DvachBot extends TelegramLongPollingBot {
                 else if (callbackCommand.contains("mainMenu"))
                     execute(CallbackHandlers.ReturnToMainMenu(callbackQuery));
 
-                else if (callbackCommand.contains("downloadAllThreads"))
-                    execute(CallbackHandlers.DownloadSettingsMessage(callbackQuery, isDownloadsStatus()));
+//                else if (callbackCommand.contains("downloadAllThreads"))
+//                    execute(CallbackHandlers.DownloadSettingsMessage(callbackQuery, isDownloadsStatus()));
 
                 // else if (callbackCommand.contains("filterSettings"))
                 // {
@@ -126,20 +129,20 @@ public class DvachBot extends TelegramLongPollingBot {
                 // else if (callbackCommand.contains("listThreads"))
                 //     execute(CallbackHandlers.ListThreadsMenu(callbackQuery,dvachRequests.getListImageBoardThreads()));
 
-                else if (callbackCommand.contains("toggleDownload"))
-                {
-                    if (isDownloadsStatus())
-                    {
-                        setDownloadsStatus(false);
-                        //applicationContext.getBean(Requests.class).setParseStatus(false);
-                    }
-                    else if (!isDownloadsStatus())
-                    {
-                        setDownloadsStatus(true);
-                        //applicationContext.getBean(Requests.class).setParseStatus(true);
-                    }
-                    execute(CallbackHandlers.DownloadSettingsMessage(callbackQuery, isDownloadsStatus()));
-                }
+//                else if (callbackCommand.contains("toggleDownload"))
+//                {
+//                    if (isDownloadsStatus())
+//                    {
+//                        setDownloadsStatus(false);
+//                        //applicationContext.getBean(Requests.class).setParseStatus(false);
+//                    }
+//                    else if (!isDownloadsStatus())
+//                    {
+//                        setDownloadsStatus(true);
+//                        //applicationContext.getBean(Requests.class).setParseStatus(true);
+//                    }
+//                    execute(CallbackHandlers.DownloadSettingsMessage(callbackQuery, isDownloadsStatus()));
+//                }
             }
         }
         catch (TelegramApiException e) {
@@ -154,26 +157,37 @@ public class DvachBot extends TelegramLongPollingBot {
         asyncSentMessages();
     }
 
-    private void asyncGetPosts()
-    {
-        CompletableFuture.runAsync(()->
+    private void asyncGetPosts() {
+        CompletableFuture.runAsync(() ->
         {
-            while (true)
-            {
+            while (true) {
                 if (parseStatus) {
                     restartUpdate = false;
-                    dvachRequests.getCatalog("b").getThreads().forEach(thread->{
-
-                        dvachRequests.getThreadPosts("b", thread.getNum()).getPosts()
-                        .stream().filter(post->!post.getFiles().isEmpty())
-                        .forEach(post ->{
-                            telegramPostArrayDeque.add(new TelegramPost(post.getFiles(),post.getSubject(),URLBuilder.buildPostURL(post.getNum()));
-                        });
-
-
-                    });
-
-                    //UpdateThreads();
+                    dvachRequests.getCatalog(board).getThreads().stream()
+                            .filter(thread -> threadFilterWords.stream()
+                                    .anyMatch(filterWord-> Pattern.compile(filterWord, Pattern.CASE_INSENSITIVE).matcher(thread.getSubject()).find()))
+                            .forEach(thread ->
+                            {
+                                log.info("Check thread: {}", thread.getSubject());
+                                dvachRequests.getThreadPosts("b", thread.getNum()).getPosts().stream()
+                                        .filter(post -> post.getFiles().stream().anyMatch(file -> fileExtensions.stream().anyMatch(extension -> file.getFullname().contains(extension))))
+                                        .forEach(post -> {
+                                            telegramPostArrayDeque.add(
+                                                    new TelegramPost(
+                                                            post.getFiles()
+                                                                    .stream()
+                                                                    .map(file -> URLBuilder.buildMediaURL(board, thread, file)).toList(),
+                                                            thread.getSubject(),
+                                                            URLBuilder.buildPostURL(board, thread, post)
+                                                    )
+                                            );
+                                        });
+                                try {
+                                    TimeUnit.SECONDS.sleep(3);
+                                } catch (InterruptedException e) {
+                                    throw new RuntimeException(e);
+                                }
+                            });
                 }
             }
         });
@@ -194,7 +208,7 @@ public class DvachBot extends TelegramLongPollingBot {
                         }
 
                         if (telegramPost.getURLVideos().size() == 1)
-                            executeAsync(SendVideo(telegramPost)).exceptionally(e -> {
+                            executeAsync(sendVideo(telegramPost)).exceptionally(e -> {
                                 log.error(e.getMessage());
                                 if (e.getMessage().contains("Too Many Requests"))
                                     SleepBySecond(30);
@@ -255,7 +269,7 @@ public class DvachBot extends TelegramLongPollingBot {
         return sendMediaGroup;
     }
 
-    public SendVideo SendVideo(TelegramPost telegramPost) {
+    public SendVideo sendVideo(TelegramPost telegramPost) {
         SendVideo sendVideo = new SendVideo();
         sendVideo.setChatId(chatId);
         InputFile inputVideo;
@@ -273,63 +287,4 @@ public class DvachBot extends TelegramLongPollingBot {
 
         return sendVideo;
     }
-
-    public SendVideo SendVideoByFile_id(TelegramPost telegramPost) {
-        SendVideo sendVideo = new SendVideo();
-        sendVideo.setChatId(chatId);
-        InputFile inputVideo;
-        var urlVideo = telegramPost.getURLVideos().get(0);
-        if (urlVideo.contains("http")) {
-            inputVideo = new InputFile(urlVideo);
-        } else {
-            inputVideo = new InputFile(new File(urlVideo));
-        }
-        sendVideo.setVideo(inputVideo);
-        sendVideo.setSupportsStreaming(true);
-        sendVideo.setCaption(telegramPost.getMessageURL());
-        return sendVideo;
-    }
-
-    /**
-     * @return String return the username
-     */
-    public String getUsername() {
-        return username;
-    }
-
-    /**
-     * @param username the username to set
-     */
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    /**
-     * @return String return the token
-     */
-    public String getToken() {
-        return token;
-    }
-
-    /**
-     * @param token the token to set
-     */
-    public void setToken(String token) {
-        this.token = token;
-    }
-
-    /**
-     * @return boolean return the dowloadsStatus
-     */
-    public boolean isDownloadsStatus() {
-        return downloadsStatus;
-    }
-
-    /**
-     * @param downloadsStatus the dowloadsStatus to set
-     */
-    public void setDownloadsStatus(boolean downloadsStatus) {
-        this.downloadsStatus = downloadsStatus;
-    }
-
 }

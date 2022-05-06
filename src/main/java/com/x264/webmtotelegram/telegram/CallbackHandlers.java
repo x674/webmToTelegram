@@ -1,10 +1,10 @@
-package com.x264.webmtotelegram.Telegram;
+package com.x264.webmtotelegram.telegram;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import com.x264.webmtotelegram.Entities.ImageBoardThread;
+import com.x264.webmtotelegram.entities.ImageBoardThread;
 
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;

@@ -1,4 +1,4 @@
-package com.x264.webmtotelegram.Telegram;
+package com.x264.webmtotelegram.telegram;
 
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;

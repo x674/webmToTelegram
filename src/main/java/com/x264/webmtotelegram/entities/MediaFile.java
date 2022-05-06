@@ -1,4 +1,4 @@
-package com.x264.webmtotelegram.Entities;
+package com.x264.webmtotelegram.entities;
 
 import javax.persistence.*;
 
