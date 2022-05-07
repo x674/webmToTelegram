@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.*;
@@ -15,6 +14,7 @@ import javax.annotation.PostConstruct;
 
 import com.x264.webmtotelegram.repositories.MediaRepository;
 import com.x264.webmtotelegram.telegram.entities.TelegramPost;
+import com.x264.webmtotelegram.telegram.entities.VideoThumbnail;
 import com.x264.webmtotelegram.videoutils.Converter;
 import com.x264.webmtotelegram.imageboard.dvach.Requests;
 import com.x264.webmtotelegram.imageboard.dvach.URLBuilder;
@@ -147,11 +147,11 @@ public class DvachBot extends TelegramLongPollingBot {
 
     @PostConstruct
     private void startBot() {
-        asyncGetPosts();
-        asyncSentMessages();
+        getPosts();
+        sentMessages();
     }
 
-    private void asyncGetPosts() {
+    private void getPosts() {
         CompletableFuture.runAsync(() ->
         {
             if (parseStatus) {
@@ -168,7 +168,7 @@ public class DvachBot extends TelegramLongPollingBot {
                                         var newPost = new TelegramPost(
                                                 post.getFiles()
                                                         .stream()
-                                                        .map(file -> URLBuilder.buildMediaURL(board, thread, file)).collect(Collectors.toList()),
+                                                        .map(file -> new VideoThumbnail(URLBuilder.buildMediaURL(file),URLBuilder.buildThumbnailURL(file))).collect(Collectors.toList()),
                                                 thread.getSubject(),
                                                 URLBuilder.buildPostURL(board, thread, post)
                                         );
@@ -196,7 +196,7 @@ public class DvachBot extends TelegramLongPollingBot {
         });
     }
 
-    private void asyncSentMessages() {
+    private void sentMessages() {
         CompletableFuture.runAsync(() -> {
             while (true) {
                 if (downloadsStatus) {
@@ -204,14 +204,14 @@ public class DvachBot extends TelegramLongPollingBot {
                     telegramPost = telegramPostArrayDeque.peekFirst();
                     if (telegramPost != null){
                     log.info("Post gotten");
-                    for (int index = 0; index < telegramPost.getURLVideos().size(); index++) {
-                        if (telegramPost.getURLVideos().get(index).contains("webm")) {
-                            File filePath = converter.convertWebmToMP4(telegramPost.getURLVideos().get(index));
-                            telegramPost.getURLVideos().set(index, filePath.getAbsolutePath());
+                    for (int index = 0; index < telegramPost.getVideoThumbnails().size(); index++) {
+                        if (telegramPost.getVideoThumbnails().get(index).getUrlVideo().contains("webm")) {
+                            File filePath = converter.convertWebmToMP4(telegramPost.getVideoThumbnails().get(index).getUrlVideo());
+                            telegramPost.getVideoThumbnails().get(index).setUrlVideo(filePath.getAbsolutePath());
                         }
                     }
 
-                        if (telegramPost.getURLVideos().size() == 1) {
+                        if (telegramPost.getVideoThumbnails().size() == 1) {
                             log.info("Length urls == 1, try send");
                             executeAsync(sendVideo(telegramPost)).exceptionally(e -> {
                                 log.error(e.getMessage());
@@ -219,8 +219,8 @@ public class DvachBot extends TelegramLongPollingBot {
                                     SleepBySecond(30);
                                 return null;
                             }).join();
-                        } else if (telegramPost.getURLVideos().size() > 1) {
-                            log.info("Length urls == {}, try send", telegramPost.getURLVideos().size());
+                        } else if (telegramPost.getVideoThumbnails().size() > 1) {
+                            log.info("Length urls == {}, try send", telegramPost.getVideoThumbnails().size());
                             executeAsync(SendMediaGroup(telegramPost)).exceptionally(e -> {
                                 log.error(e.getMessage());
                                 if (e.getMessage().contains("Too Many Requests"))
@@ -229,10 +229,10 @@ public class DvachBot extends TelegramLongPollingBot {
                             }).join();
                         }
                         telegramPostArrayDeque.remove(telegramPost);
-                        telegramPost.getURLVideos().forEach(e -> {
-                            if (!e.contains("http"))
+                        telegramPost.getVideoThumbnails().forEach(videoThumbnail -> {
+                            if (!videoThumbnail.getUrlVideo().contains("http"))
                                 try {
-                                    Files.delete(Path.of(e));
+                                    Files.delete(Path.of(videoThumbnail.getUrlVideo()));
                                 } catch (IOException e1) {
                                     e1.printStackTrace();
                                 }
@@ -259,15 +259,16 @@ public class DvachBot extends TelegramLongPollingBot {
     public SendMediaGroup SendMediaGroup(TelegramPost telegramPost) {
         SendMediaGroup sendMediaGroup = new SendMediaGroup();
         sendMediaGroup.setChatId(chatId);
-        List<InputMedia> listMedia = telegramPost.getURLVideos().stream().map(e -> {
+        List<InputMedia> listMedia = telegramPost.getVideoThumbnails().stream().map(videoThumbnail -> {
             var inputMediaVideo = new InputMediaVideo();
-            if (e.contains("http")) {
-                inputMediaVideo.setMedia(e);
+            if (videoThumbnail.getUrlVideo().contains("http")) {
+                inputMediaVideo.setMedia(videoThumbnail.getUrlVideo());
             } else {
-                File mediaName = new File(e);
+                File mediaName = new File(videoThumbnail.getUrlVideo());
                 inputMediaVideo = new InputMediaVideo();
                 inputMediaVideo.setMedia(mediaName, mediaName.getName());
             }
+            inputMediaVideo.setThumb(new InputFile(""));
             inputMediaVideo.setSupportsStreaming(true);
             return inputMediaVideo;
         }).collect(Collectors.toList());
@@ -282,12 +283,13 @@ public class DvachBot extends TelegramLongPollingBot {
         SendVideo sendVideo = new SendVideo();
         sendVideo.setChatId(chatId);
         InputFile inputVideo;
-        var urlVideo = telegramPost.getURLVideos().get(0);
-        if (urlVideo.contains("http")) {
-            inputVideo = new InputFile(urlVideo);
+        var videoThumbnail = telegramPost.getVideoThumbnails().get(0);
+        if (videoThumbnail.getUrlVideo().contains("http")) {
+            inputVideo = new InputFile(videoThumbnail.getUrlVideo());
         } else {
-            inputVideo = new InputFile(new File(urlVideo));
+            inputVideo = new InputFile(new File(videoThumbnail.getUrlVideo()));
         }
+        sendVideo.setThumb(new InputFile(videoThumbnail.getUrlThumbnail()));
         sendVideo.setVideo(inputVideo);
         sendVideo.setSupportsStreaming(true);
         sendVideo.setParseMode(ParseMode.HTML);

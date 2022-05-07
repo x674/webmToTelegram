@@ -3,22 +3,24 @@ package com.x264.webmtotelegram.telegram.entities;
 import java.util.List;
 
 public class TelegramPost {
-    private List<String> URLVideos;
+
+
+    private List<VideoThumbnail> videoThumbnails;
     private String ThreadName;
     private String MessageURL;
 
-    public TelegramPost(List<String> URLVideos, String ThreadName, String MessageURL) {
-        this.URLVideos = URLVideos;
+    public TelegramPost(List<VideoThumbnail> videoThumbnails, String ThreadName, String MessageURL) {
+        this.videoThumbnails = videoThumbnails;
         this.ThreadName = ThreadName;
         this.MessageURL = MessageURL;
     }
 
-    public List<String> getURLVideos() {
-        return URLVideos;
+    public List<VideoThumbnail> getVideoThumbnails() {
+        return videoThumbnails;
     }
 
-    public void setURLVideos(List<String> URLVideos) {
-        this.URLVideos = URLVideos;
+    public void setURLVideos(List<VideoThumbnail> videoThumbnails) {
+        this.videoThumbnails = videoThumbnails;
     }
 
     public String getThreadName() {
