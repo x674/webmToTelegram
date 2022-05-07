@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.*;
@@ -40,7 +41,7 @@ public class DvachBot extends TelegramLongPollingBot {
     private static final Logger log = LoggerFactory.getLogger(DvachBot.class);
     private String board = "b";
     private List<String> fileExtensions = Arrays.asList("webm", "mp4");
-    private List<String> threadFilterWords = Arrays.asList("webm", "mp4", "тикток","тик-ток");
+    private List<String> threadFilterWords = Arrays.asList("webm", "mp4", "тикток", "тик-ток");
     @Value("${bot.name}")
     private String username;
     @Value("${bot.token}")
@@ -85,20 +86,18 @@ public class DvachBot extends TelegramLongPollingBot {
                         execute(CommandHandlers.sendInlineKeyboardMainMenu(message.getChatId().toString()));
                         return;
                     }
-                }
-                else if (nowSetFilters)
-                {
+                } else if (nowSetFilters) {
                     List<String> filterWords = Arrays.asList(message.getText().split(" "));
                     //dvachRequests.setFilterWords(new ArrayList<>(filterWords));
                     nowSetFilters = false;
-                    DeleteMessage deleteMessage = new DeleteMessage(message.getChatId().toString(),message.getMessageId());
+                    DeleteMessage deleteMessage = new DeleteMessage(message.getChatId().toString(), message.getMessageId());
                     execute(deleteMessage);
                     //execute(CallbackHandlers.OnSettedFilter(setFilterCallbackQuery, dvachRequests.getFilterWords()));
                     return;
                 }
                 //When receiveing link to a thread, download it
                 //TODO Refine the filter
-                else if (message.getText().contains("2ch.hk")){
+                else if (message.getText().contains("2ch.hk")) {
                     //
                 }
 
@@ -141,15 +140,13 @@ public class DvachBot extends TelegramLongPollingBot {
 //                    execute(CallbackHandlers.DownloadSettingsMessage(callbackQuery, isDownloadsStatus()));
 //                }
             }
-        }
-        catch (TelegramApiException e) {
+        } catch (TelegramApiException e) {
             e.printStackTrace();
         }
     }
 
     @PostConstruct
-    private void startBot()
-    {
+    private void startBot() {
         asyncGetPosts();
         asyncSentMessages();
     }
@@ -161,7 +158,7 @@ public class DvachBot extends TelegramLongPollingBot {
                 restartUpdate = false;
                 dvachRequests.getCatalog(board).getThreads().stream()
                         .filter(thread -> threadFilterWords.stream()
-                                .anyMatch(filterWord-> Pattern.compile(filterWord, Pattern.CASE_INSENSITIVE).matcher(thread.getSubject()).find()))
+                                .anyMatch(filterWord -> Pattern.compile(filterWord, Pattern.CASE_INSENSITIVE).matcher(thread.getSubject()).find()))
                         .forEach(thread ->
                         {
                             log.info("Check thread: {}", thread.getSubject());
@@ -171,7 +168,7 @@ public class DvachBot extends TelegramLongPollingBot {
                                         var newPost = new TelegramPost(
                                                 post.getFiles()
                                                         .stream()
-                                                        .map(file -> URLBuilder.buildMediaURL(board, thread, file)).toList(),
+                                                        .map(file -> URLBuilder.buildMediaURL(board, thread, file)).collect(Collectors.toList()),
                                                 thread.getSubject(),
                                                 URLBuilder.buildPostURL(board, thread, post)
                                         );
@@ -193,6 +190,9 @@ public class DvachBot extends TelegramLongPollingBot {
                     Thread.currentThread().interrupt();
                 }
             }
+        }).exceptionally(throwable -> {
+            throwable.printStackTrace();
+            return null;
         });
     }
 
@@ -211,34 +211,39 @@ public class DvachBot extends TelegramLongPollingBot {
                         }
                     }
 
-                    if (telegramPost.getURLVideos().size() == 1)
-                        executeAsync(sendVideo(telegramPost)).exceptionally(e -> {
-                            log.error(e.getMessage());
-                            if (e.getMessage().contains("Too Many Requests"))
-                                SleepBySecond(30);
-                            return null;
-                        }).join();
-                    else if (telegramPost.getURLVideos().size() > 1) {
-                        executeAsync(SendMediaGroup(telegramPost)).exceptionally(e -> {
-                            log.error(e.getMessage());
-                            if (e.getMessage().contains("Too Many Requests"))
-                                SleepBySecond(30);
-                            return null;
-                        }).join();
+                        if (telegramPost.getURLVideos().size() == 1) {
+                            log.info("Length urls == 1, try send");
+                            executeAsync(sendVideo(telegramPost)).exceptionally(e -> {
+                                log.error(e.getMessage());
+                                if (e.getMessage().contains("Too Many Requests"))
+                                    SleepBySecond(30);
+                                return null;
+                            }).join();
+                        } else if (telegramPost.getURLVideos().size() > 1) {
+                            log.info("Length urls == {}, try send", telegramPost.getURLVideos().size());
+                            executeAsync(SendMediaGroup(telegramPost)).exceptionally(e -> {
+                                log.error(e.getMessage());
+                                if (e.getMessage().contains("Too Many Requests"))
+                                    SleepBySecond(30);
+                                return null;
+                            }).join();
+                        }
+                        telegramPostArrayDeque.remove(telegramPost);
+                        telegramPost.getURLVideos().forEach(e -> {
+                            if (!e.contains("http"))
+                                try {
+                                    Files.delete(Path.of(e));
+                                } catch (IOException e1) {
+                                    e1.printStackTrace();
+                                }
+                        });
+                        SleepBySecond(10);
                     }
-                    telegramPostArrayDeque.remove(telegramPost);
-                    telegramPost.getURLVideos().forEach(e -> {
-                        if (!e.contains("http"))
-                            try {
-                                Files.delete(Path.of(e));
-                            } catch (IOException e1) {
-                                e1.printStackTrace();
-                            }
-                    });
-                    SleepBySecond(10);
-                }
                 }
             }
+        }).exceptionally(throwable -> {
+            throwable.printStackTrace();
+            return null;
         });
     }
 
@@ -267,7 +272,7 @@ public class DvachBot extends TelegramLongPollingBot {
             return inputMediaVideo;
         }).collect(Collectors.toList());
         listMedia.get(0).setParseMode(ParseMode.HTML);
-        String caption = "<a href=\"" + telegramPost.getMessageURL() + "\">" + telegramPost.getThreadName()+ "</a>";
+        String caption = "<a href=\"" + telegramPost.getMessageURL() + "\">" + telegramPost.getThreadName() + "</a>";
         listMedia.get(0).setCaption(caption);
         sendMediaGroup.setMedias(listMedia);
         return sendMediaGroup;
