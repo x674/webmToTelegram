@@ -280,9 +280,8 @@ public class DvachBot extends TelegramLongPollingBot {
             return inputMediaVideo;
         }).collect(Collectors.toList());
         listMedia.get(0).setParseMode(ParseMode.HTML);
-        String caption = MessageFormat.format("<a href=\"{0}\">{1}</a>\n{2}",telegramPost.getMessageURL(),
-                telegramPost.getVideoThumbnails().stream().map(VideoThumbnail::getFilename).collect(Collectors.joining("/n")));
-
+        String caption = MessageFormat.format("<a href=\"{0}\">{1}</a>\n{2}",telegramPost.getMessageURL(),telegramPost.getThreadName(),
+                telegramPost.getVideoThumbnails().stream().map(VideoThumbnail::getFilename).collect(Collectors.joining("\n")));
         listMedia.get(0).setCaption(caption);
         sendMediaGroup.setMedias(listMedia);
         return sendMediaGroup;
