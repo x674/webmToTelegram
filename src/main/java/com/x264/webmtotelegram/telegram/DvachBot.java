@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.*;
@@ -275,7 +276,9 @@ public class DvachBot extends TelegramLongPollingBot {
             return inputMediaVideo;
         }).collect(Collectors.toList());
         listMedia.get(0).setParseMode(ParseMode.HTML);
-        String caption = "<a href=\"" + telegramPost.getMessageURL() + "\">" + telegramPost.getThreadName() + "</a>";
+        String caption = MessageFormat.format("<a href=\"{0}\">{1}</a>\n{2}",telegramPost.getMessageURL(),
+                telegramPost.getVideoThumbnails().stream().map(VideoThumbnail::getFilename).collect(Collectors.joining("/n")));
+
         listMedia.get(0).setCaption(caption);
         sendMediaGroup.setMedias(listMedia);
         return sendMediaGroup;
@@ -295,11 +298,10 @@ public class DvachBot extends TelegramLongPollingBot {
         sendVideo.setDuration(videoThumbnail.getDurationSecs());
         sendVideo.setHeight(videoThumbnail.getHeight());
         sendVideo.setWidth(videoThumbnail.getWidth());
-        //sendVideo.setMediaName(videoThumbnail.getFilename());
         sendVideo.setVideo(inputVideo);
         sendVideo.setSupportsStreaming(true);
         sendVideo.setParseMode(ParseMode.HTML);
-        String caption = "<a href=\"" + telegramPost.getMessageURL() + "\">" + telegramPost.getThreadName() + "</a>";
+        String caption = MessageFormat.format("<a href=\"{0}\">{1}</a>\n{2}",telegramPost.getMessageURL(),telegramPost.getThreadName(),videoThumbnail.getFilename());
         sendVideo.setCaption(caption);
 
         return sendVideo;
