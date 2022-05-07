@@ -207,9 +207,9 @@ public class DvachBot extends TelegramLongPollingBot {
                     for (int index = 0; index < telegramPost.getVideoThumbnails().size(); index++) {
                         if (telegramPost.getVideoThumbnails().get(index).getUrlVideo().contains("webm")) {
                             File filePath = converter.convertWebmToMP4(telegramPost.getVideoThumbnails().get(index).getUrlVideo());
-                            String thumbnail = Downloader.DownloadFile(telegramPost.getVideoThumbnails().get(index).getUrlThumbnail());
+                            File thumbnail = Downloader.downloadFile(telegramPost.getVideoThumbnails().get(index).getUrlThumbnail());
                             telegramPost.getVideoThumbnails().get(index).setUrlVideo(filePath.getAbsolutePath());
-                            telegramPost.getVideoThumbnails().get(index).setUrlThumbnail(thumbnail);
+                            telegramPost.getVideoThumbnails().get(index).setUrlThumbnail(thumbnail.getAbsolutePath());
                         }
                     }
 
