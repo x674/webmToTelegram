@@ -2,7 +2,6 @@ package com.x264.webmtotelegram.videoutils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 import ws.schild.jave.Encoder;
 import ws.schild.jave.EncoderException;
 import ws.schild.jave.MultimediaObject;
@@ -12,13 +11,12 @@ import ws.schild.jave.encode.VideoAttributes;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 
-@Component
+
 public class Converter {
     public static final String PATH_SAVE = System.getProperty("user.dir") + File.separator;
     private static final Logger log = LoggerFactory.getLogger(Converter.class);
@@ -40,13 +38,7 @@ public class Converter {
 
     }
 
-    public File ConvertWebmToMP4(String URLVideo) {
-        URL urlVideo = null;
-        try {
-            urlVideo = new URL(URLVideo);
-        } catch (MalformedURLException e) {
-            e.printStackTrace();
-        }
+    public File convertWebmToMP4(String URLVideo) {
         AudioAttributes audio = new AudioAttributes();
         audio.setCodec(AUDIO_ENCODER);
         VideoAttributes video = new VideoAttributes();
@@ -54,29 +46,24 @@ public class Converter {
         EncodingAttributes attrs = new EncodingAttributes();
         attrs.setAudioAttributes(audio);
         attrs.setVideoAttributes(video);
-
         // Out file
         var fileName = Path.of(PATH_SAVE + URLVideo.substring(URLVideo.lastIndexOf("/") + 1) + ".mp4");
 
-        if (Files.exists(fileName))
-        {
+        if (Files.exists(fileName)) {
             return fileName.toFile();
         }
 
         File target = null;
         try {
             target = Files.createFile(fileName).toFile();
-        } catch (IOException e1) {
-            e1.printStackTrace();
-        }
-
-        try {
+            URL urlVideo = new URL(URLVideo);
+            log.info("Start convert {}", urlVideo);
             encoder.encode(new MultimediaObject(urlVideo), target, attrs);
-        } catch (EncoderException e) {
+        } catch (EncoderException | IOException e){
             e.printStackTrace();
         }
 
-        log.info("Converted to " + target.getPath());
+        log.info("Converted to {}", target.getPath());
         return target;
     }
 }

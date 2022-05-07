@@ -6,9 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -51,20 +49,19 @@ public class DvachBot extends TelegramLongPollingBot {
     private String chatId;
     final ApplicationContext applicationContext;
     final MediaRepository mediaRepository;
-    private Converter converter;
+    private final Converter converter = new Converter();
     private final Requests dvachRequests;
     private boolean downloadsStatus = true;
     private boolean nowSetFilters = false;
     private CallbackQuery setFilterCallbackQuery;
-    private volatile ConcurrentLinkedDeque<TelegramPost> telegramPostArrayDeque = new ConcurrentLinkedDeque<>();
+    private final ConcurrentLinkedDeque<TelegramPost> telegramPostArrayDeque = new ConcurrentLinkedDeque<>();
     private boolean parseStatus = true;
     private boolean restartUpdate;
 
-    public DvachBot(ApplicationContext applicationContext, MediaRepository mediaRepository, Converter converter, Requests dvachRequests) {
+    public DvachBot(ApplicationContext applicationContext, MediaRepository mediaRepository, Requests dvachRequests) {
         this.applicationContext = applicationContext;
         this.mediaRepository = mediaRepository;
         this.dvachRequests = dvachRequests;
-        this.converter = converter;
     }
 
     @Override
@@ -160,79 +157,86 @@ public class DvachBot extends TelegramLongPollingBot {
     private void asyncGetPosts() {
         CompletableFuture.runAsync(() ->
         {
-            while (true) {
-                if (parseStatus) {
-                    restartUpdate = false;
-                    dvachRequests.getCatalog(board).getThreads().stream()
-                            .filter(thread -> threadFilterWords.stream()
-                                    .anyMatch(filterWord-> Pattern.compile(filterWord, Pattern.CASE_INSENSITIVE).matcher(thread.getSubject()).find()))
-                            .forEach(thread ->
-                            {
-                                log.info("Check thread: {}", thread.getSubject());
-                                dvachRequests.getThreadPosts("b", thread.getNum()).getPosts().stream()
-                                        .filter(post -> post.getFiles().stream().anyMatch(file -> fileExtensions.stream().anyMatch(extension -> file.getFullname().contains(extension))))
-                                        .forEach(post -> {
-                                            telegramPostArrayDeque.add(
-                                                    new TelegramPost(
-                                                            post.getFiles()
-                                                                    .stream()
-                                                                    .map(file -> URLBuilder.buildMediaURL(board, thread, file)).toList(),
-                                                            thread.getSubject(),
-                                                            URLBuilder.buildPostURL(board, thread, post)
-                                                    )
-                                            );
-                                        });
-                                try {
-                                    TimeUnit.SECONDS.sleep(3);
-                                } catch (InterruptedException e) {
-                                    throw new RuntimeException(e);
-                                }
-                            });
+            if (parseStatus) {
+                restartUpdate = false;
+                dvachRequests.getCatalog(board).getThreads().stream()
+                        .filter(thread -> threadFilterWords.stream()
+                                .anyMatch(filterWord-> Pattern.compile(filterWord, Pattern.CASE_INSENSITIVE).matcher(thread.getSubject()).find()))
+                        .forEach(thread ->
+                        {
+                            log.info("Check thread: {}", thread.getSubject());
+                            dvachRequests.getThreadPosts("b", thread.getNum()).getPosts().stream()
+                                    .filter(post -> post.getFiles().stream().anyMatch(file -> fileExtensions.stream().anyMatch(extension -> file.getFullname().contains(extension))))
+                                    .forEach(post -> {
+                                        var newPost = new TelegramPost(
+                                                post.getFiles()
+                                                        .stream()
+                                                        .map(file -> URLBuilder.buildMediaURL(board, thread, file)).toList(),
+                                                thread.getSubject(),
+                                                URLBuilder.buildPostURL(board, thread, post)
+                                        );
+                                        telegramPostArrayDeque.addLast(newPost);
+
+                                    });
+                            log.info("Added new posts, current size {}", telegramPostArrayDeque.size());
+                            try {
+                                TimeUnit.SECONDS.sleep(3);
+                            } catch (InterruptedException e) {
+                                log.warn("Interrupted! {0}", e);
+                                Thread.currentThread().interrupt();
+                            }
+                        });
+                try {
+                    TimeUnit.SECONDS.sleep(12);
+                } catch (InterruptedException e) {
+                    log.warn("Interrupted! {0}", e);
+                    Thread.currentThread().interrupt();
                 }
             }
         });
     }
 
-    private void asyncSentMessages() 
-    {
+    private void asyncSentMessages() {
         CompletableFuture.runAsync(() -> {
             while (true) {
                 if (downloadsStatus) {
-                    if (!telegramPostArrayDeque.isEmpty()) {
-                        TelegramPost telegramPost = telegramPostArrayDeque.getFirst();
-                        for (int index = 0; index < telegramPost.getURLVideos().size(); index++) {
-                            if (telegramPost.getURLVideos().get(index).contains("webm")) {
-                                File filePath = converter.ConvertWebmToMP4(telegramPost.getURLVideos().get(index));
-                                telegramPost.getURLVideos().set(index, filePath.getAbsolutePath());
-                            }
+                    TelegramPost telegramPost = null;
+                    telegramPost = telegramPostArrayDeque.peekFirst();
+                    if (telegramPost != null){
+                    log.info("Post gotten");
+                    for (int index = 0; index < telegramPost.getURLVideos().size(); index++) {
+                        if (telegramPost.getURLVideos().get(index).contains("webm")) {
+                            File filePath = converter.convertWebmToMP4(telegramPost.getURLVideos().get(index));
+                            telegramPost.getURLVideos().set(index, filePath.getAbsolutePath());
                         }
-
-                        if (telegramPost.getURLVideos().size() == 1)
-                            executeAsync(sendVideo(telegramPost)).exceptionally(e -> {
-                                log.error(e.getMessage());
-                                if (e.getMessage().contains("Too Many Requests"))
-                                    SleepBySecond(30);
-                                return null;
-                            }).join();
-                        else if (telegramPost.getURLVideos().size() > 1) {
-                            executeAsync(SendMediaGroup(telegramPost)).exceptionally(e -> {
-                                log.error(e.getMessage());
-                                if (e.getMessage().contains("Too Many Requests"))
-                                    SleepBySecond(30);
-                                return null;
-                            }).join();
-                        }
-                        telegramPostArrayDeque.remove(telegramPost);
-                        telegramPost.getURLVideos().forEach(e -> {
-                            if (!e.contains("http"))
-                                try {
-                                    Files.delete(Path.of(e));
-                                } catch (IOException e1) {
-                                    e1.printStackTrace();
-                                }
-                        });
-                        SleepBySecond(10);
                     }
+
+                    if (telegramPost.getURLVideos().size() == 1)
+                        executeAsync(sendVideo(telegramPost)).exceptionally(e -> {
+                            log.error(e.getMessage());
+                            if (e.getMessage().contains("Too Many Requests"))
+                                SleepBySecond(30);
+                            return null;
+                        }).join();
+                    else if (telegramPost.getURLVideos().size() > 1) {
+                        executeAsync(SendMediaGroup(telegramPost)).exceptionally(e -> {
+                            log.error(e.getMessage());
+                            if (e.getMessage().contains("Too Many Requests"))
+                                SleepBySecond(30);
+                            return null;
+                        }).join();
+                    }
+                    telegramPostArrayDeque.remove(telegramPost);
+                    telegramPost.getURLVideos().forEach(e -> {
+                        if (!e.contains("http"))
+                            try {
+                                Files.delete(Path.of(e));
+                            } catch (IOException e1) {
+                                e1.printStackTrace();
+                            }
+                    });
+                    SleepBySecond(10);
+                }
                 }
             }
         });
