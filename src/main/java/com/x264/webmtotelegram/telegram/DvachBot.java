@@ -268,7 +268,7 @@ public class DvachBot extends TelegramLongPollingBot {
                 inputMediaVideo = new InputMediaVideo();
                 inputMediaVideo.setMedia(mediaName, mediaName.getName());
             }
-            inputMediaVideo.setThumb(new InputFile(""));
+            inputMediaVideo.setThumb(new InputFile(videoThumbnail.getUrlThumbnail()));
             inputMediaVideo.setSupportsStreaming(true);
             return inputMediaVideo;
         }).collect(Collectors.toList());
