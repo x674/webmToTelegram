@@ -1,18 +1,26 @@
 package com.x264.webmtotelegram.telegram.entities;
 
+import com.x264.webmtotelegram.imageboard.dvach.rest.File;
+
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class TelegramPost {
 
 
     private List<VideoThumbnail> videoThumbnails;
-    private String ThreadName;
-    private String MessageURL;
+    private String threadName;
+    private String messageURL;
 
-    public TelegramPost(List<VideoThumbnail> videoThumbnails, String ThreadName, String MessageURL) {
-        this.videoThumbnails = videoThumbnails;
-        this.ThreadName = ThreadName;
-        this.MessageURL = MessageURL;
+    private int durationSecs;
+    private int height;
+    private int width;
+    private String fullname;
+
+    public TelegramPost(List<File> files, String threadName, String messageURL) {
+        this.videoThumbnails = files.stream().map(VideoThumbnail::new).collect(Collectors.toList());
+        this.threadName = threadName;
+        this.messageURL = messageURL;
     }
 
     public List<VideoThumbnail> getVideoThumbnails() {
@@ -24,18 +32,18 @@ public class TelegramPost {
     }
 
     public String getThreadName() {
-        return ThreadName;
+        return threadName;
     }
 
     public void setThreadName(String threadName) {
-        ThreadName = threadName;
+        this.threadName = threadName;
     }
 
     public String getMessageURL() {
-        return MessageURL;
+        return messageURL;
     }
 
     public void setMessageURL(String messageURL) {
-        MessageURL = messageURL;
+        this.messageURL = messageURL;
     }
 }

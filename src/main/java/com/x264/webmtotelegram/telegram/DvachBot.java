@@ -166,9 +166,7 @@ public class DvachBot extends TelegramLongPollingBot {
                                     .filter(post -> post.getFiles().stream().anyMatch(file -> fileExtensions.stream().anyMatch(extension -> file.getFullname().contains(extension))))
                                     .forEach(post -> {
                                         var newPost = new TelegramPost(
-                                                post.getFiles()
-                                                        .stream()
-                                                        .map(file -> new VideoThumbnail(URLBuilder.buildMediaURL(file),URLBuilder.buildThumbnailURL(file))).collect(Collectors.toList()),
+                                                post.getFiles(),
                                                 thread.getSubject(),
                                                 URLBuilder.buildPostURL(board, thread, post)
                                         );
@@ -269,6 +267,10 @@ public class DvachBot extends TelegramLongPollingBot {
                 inputMediaVideo.setMedia(mediaName, mediaName.getName());
             }
             inputMediaVideo.setThumb(new InputFile(videoThumbnail.getUrlThumbnail()));
+            inputMediaVideo.setDuration(videoThumbnail.getDurationSecs());
+            inputMediaVideo.setHeight(videoThumbnail.getHeight());
+            inputMediaVideo.setWidth(videoThumbnail.getWidth());
+            inputMediaVideo.setMediaName(videoThumbnail.getFilename());
             inputMediaVideo.setSupportsStreaming(true);
             return inputMediaVideo;
         }).collect(Collectors.toList());
@@ -290,6 +292,10 @@ public class DvachBot extends TelegramLongPollingBot {
             inputVideo = new InputFile(new File(videoThumbnail.getUrlVideo()));
         }
         sendVideo.setThumb(new InputFile(videoThumbnail.getUrlThumbnail()));
+        sendVideo.setDuration(videoThumbnail.getDurationSecs());
+        sendVideo.setHeight(videoThumbnail.getHeight());
+        sendVideo.setWidth(videoThumbnail.getWidth());
+        //sendVideo.setMediaName(videoThumbnail.getFilename());
         sendVideo.setVideo(inputVideo);
         sendVideo.setSupportsStreaming(true);
         sendVideo.setParseMode(ParseMode.HTML);
