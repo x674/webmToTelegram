@@ -16,12 +16,12 @@ public class Downloader {
     public static final String PATH_SAVE = System.getProperty("user.dir") + File.separator;
 
     //Return path to downloaded file
-    public static File downloadFile(String URLVideo) {
-        Path fileName = Path.of(PATH_SAVE + FilenameUtils.getName(URLVideo));
+    public static File downloadFile(String urlString) {
+        Path fileName = Path.of(PATH_SAVE + FilenameUtils.getName(urlString));
         File file = fileName.toFile();
         URL url;
         try {
-            url = URI.create(URLVideo).toURL();
+            url = URI.create(urlString).toURL();
             FileUtils.copyURLToFile(url, file);
         } catch (IOException e) {
             e.printStackTrace();
