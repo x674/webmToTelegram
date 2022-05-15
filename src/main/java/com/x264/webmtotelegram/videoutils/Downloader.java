@@ -9,9 +9,8 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.file.Path;
 
-public class Downloader {
-    private Downloader() {
-    }
+public final class Downloader {
+    private Downloader() {}
 
     public static final String PATH_SAVE = System.getProperty("user.dir") + File.separator;
 

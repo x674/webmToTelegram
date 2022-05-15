@@ -2,6 +2,8 @@ package com.x264.webmtotelegram.imageboard.dvach.rest;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import javax.validation.constraints.NotNull;
+
 public class File {
 
     @JsonProperty("displayname")
@@ -33,6 +35,7 @@ public class File {
     @JsonProperty("duration")
     private String duration;
     @JsonProperty("duration_secs")
+    @NotNull
     private Integer durationSecs;
     @JsonProperty("install")
     private String install;

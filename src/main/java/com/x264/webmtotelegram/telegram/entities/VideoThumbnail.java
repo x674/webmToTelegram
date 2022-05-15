@@ -11,10 +11,21 @@ public class VideoThumbnail {
         this.durationSecs = file.getDurationSecs();
         this.height = file.getHeight();
         this.width = file.getWidth();
+        this.md5 = file.getMd5();
     }
 
     private String urlVideo;
     private String urlThumbnail;
+
+    public String getMd5() {
+        return md5;
+    }
+
+    public void setMd5(String md5) {
+        this.md5 = md5;
+    }
+
+    private String md5;
     private String filename;
     private int durationSecs;
     private int height;
