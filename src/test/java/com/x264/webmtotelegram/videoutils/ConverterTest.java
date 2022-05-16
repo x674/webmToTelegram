@@ -11,7 +11,7 @@ class ConverterTest {
     @Test
     void testConvertFromUrl()
     {
-        File convertedFilePath = converter.convertWebmToMP4("https://2ch.hk/b/src/267570191/16518200661920.webm");
+        File convertedFilePath = converter.convertWebmToMP4("https://file-examples.com/wp-content/uploads/2020/03/file_example_WEBM_480_900KB.webm");
         assertNotNull(convertedFilePath);
         convertedFilePath.delete();
     }

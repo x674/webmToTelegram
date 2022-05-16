@@ -78,4 +78,22 @@ public class VideoThumbnail {
     public void setWidth(int width) {
         this.width = width;
     }
+
+    @Override
+    public boolean equals(Object o) {
+
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        VideoThumbnail videoThumbnail = (VideoThumbnail)o;
+
+        return getMd5() != null 
+            ?getMd5().equals(videoThumbnail.getMd5())
+            :videoThumbnail.getMd5() == null;
+
+    }
+
 }

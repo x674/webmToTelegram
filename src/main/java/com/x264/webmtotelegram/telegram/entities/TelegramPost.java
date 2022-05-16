@@ -9,15 +9,26 @@ public class TelegramPost {
     private String threadName;
     private String messageURL;
 
-    private int durationSecs;
-    private int height;
-    private int width;
-    private String fullname;
 
     public TelegramPost(File file, String threadName, String messageURL) {
         this.videoThumbnail = new VideoThumbnail(file);
         this.threadName = threadName;
         this.messageURL = messageURL;
+    }
+
+    @Override
+    public boolean equals(Object o){
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        TelegramPost telegramPost = (TelegramPost)o;
+
+        return telegramPost != null 
+            ?telegramPost.getVideoThumbnail().equals(videoThumbnail)
+            :telegramPost.getVideoThumbnail() == null;
     }
 
     public VideoThumbnail getVideoThumbnail() {
@@ -43,4 +54,5 @@ public class TelegramPost {
     public void setMessageURL(String messageURL) {
         this.messageURL = messageURL;
     }
+    
 }
