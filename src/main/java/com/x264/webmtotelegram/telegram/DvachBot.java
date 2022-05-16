@@ -58,7 +58,6 @@ public class DvachBot extends TelegramLongPollingBot {
     private boolean nowSetFilters = false;
     private CallbackQuery setFilterCallbackQuery;
     private final ConcurrentLinkedDeque<TelegramPost> telegramPostArrayDeque = new ConcurrentLinkedDeque<>();
-    private boolean parseStatus = true;
     private boolean restartUpdate;
 
     public DvachBot(ApplicationContext applicationContext, MediaRepository mediaRepository, Requests dvachRequests) {
@@ -105,8 +104,8 @@ public class DvachBot extends TelegramLongPollingBot {
 
             }
             if (update.hasCallbackQuery()) {
-                var callbackQuery = update.getCallbackQuery();
-                var callbackCommand = callbackQuery.getData();
+                CallbackQuery callbackQuery = update.getCallbackQuery();
+                String callbackCommand = callbackQuery.getData();
 
                 if (callbackCommand.contains("StatusService"))
                     execute(CallbackHandlers.sendInlineKeyboardStatusService(callbackQuery));
@@ -114,37 +113,42 @@ public class DvachBot extends TelegramLongPollingBot {
                 else if (callbackCommand.contains("mainMenu"))
                     execute(CallbackHandlers.ReturnToMainMenu(callbackQuery));
 
-//                else if (callbackCommand.contains("downloadAllThreads"))
-//                    execute(CallbackHandlers.DownloadSettingsMessage(callbackQuery, isDownloadsStatus()));
+               else if (callbackCommand.contains("downloadAllThreads"))
+                   execute(CallbackHandlers.DownloadSettingsMessage(callbackQuery, downloadsStatus));
 
-                // else if (callbackCommand.contains("filterSettings"))
-                // {
-                //     setFilterCallbackQuery = callbackQuery;
-                //     nowSetFilters = true;
-                //     execute(CallbackHandlers.FilterSettingsMessage(callbackQuery, dvachRequests.getFilterWords()));
-                // }
+                else if (callbackCommand.contains("filterSettings"))
+                {
+                    setFilterCallbackQuery = callbackQuery;
+                    nowSetFilters = true;
+                    execute(CallbackHandlers.filterSettingsMessage(callbackQuery, threadFilterWords));
+                }
 
                 // else if (callbackCommand.contains("listThreads"))
                 //     execute(CallbackHandlers.ListThreadsMenu(callbackQuery,dvachRequests.getListImageBoardThreads()));
 
-//                else if (callbackCommand.contains("toggleDownload"))
-//                {
-//                    if (isDownloadsStatus())
-//                    {
-//                        setDownloadsStatus(false);
-//                        //applicationContext.getBean(Requests.class).setParseStatus(false);
-//                    }
-//                    else if (!isDownloadsStatus())
-//                    {
-//                        setDownloadsStatus(true);
-//                        //applicationContext.getBean(Requests.class).setParseStatus(true);
-//                    }
-//                    execute(CallbackHandlers.DownloadSettingsMessage(callbackQuery, isDownloadsStatus()));
-//                }
+               else if (callbackCommand.contains("toggleDownload"))
+               {
+                   if (downloadsStatus)
+                   {
+                    toggleDownloadStatus(false);
+                   }
+                   else if (!downloadsStatus)
+                   {
+                    toggleDownloadStatus(true);
+                   }
+                   execute(CallbackHandlers.DownloadSettingsMessage(callbackQuery, downloadsStatus));
+               }
             }
         } catch (TelegramApiException e) {
             e.printStackTrace();
         }
+    }
+
+    private void toggleDownloadStatus(boolean status)
+    {
+        downloadsStatus = status;
+        if (!status)
+            telegramPostArrayDeque.clear();
     }
 
     @PostConstruct
@@ -157,7 +161,7 @@ public class DvachBot extends TelegramLongPollingBot {
         CompletableFuture.runAsync(() ->
         {
             while (true) {
-                if (parseStatus) {
+                if (downloadsStatus) {
                     restartUpdate = false;
                     Catalog catalog = dvachRequests.getCatalog(board);
                     List<Thread> threads = catalog.getThreads();

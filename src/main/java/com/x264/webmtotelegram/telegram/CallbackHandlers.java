@@ -68,12 +68,12 @@ public class CallbackHandlers {
         return editMessageText;
     }
 
-    public static EditMessageText FilterSettingsMessage(CallbackQuery callbackQuery, List listFilter) {
+    public static EditMessageText filterSettingsMessage(CallbackQuery callbackQuery, List<String> listFilter) {
         EditMessageText editMessageText = new EditMessageText();
         editMessageText.setMessageId(callbackQuery.getMessage().getMessageId());
         editMessageText.setChatId(callbackQuery.getMessage().getChatId().toString());
         String message = "";
-        if (listFilter.size() == 0)
+        if (listFilter.isEmpty())
             message = "Ключевые слова не заданы\n"+
                     "Отправь список ключевых слов, через запятую";
         else
