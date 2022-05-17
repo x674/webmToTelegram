@@ -9,7 +9,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.*;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import javax.annotation.PostConstruct;
 
@@ -132,9 +131,10 @@ public class DvachBot extends TelegramLongPollingBot {
                    {
                     toggleDownloadStatus(false);
                    }
-                   else if (!downloadsStatus)
+                   else
                    {
                     toggleDownloadStatus(true);
+                    startService();
                    }
                    execute(CallbackHandlers.DownloadSettingsMessage(callbackQuery, downloadsStatus));
                }
@@ -152,7 +152,7 @@ public class DvachBot extends TelegramLongPollingBot {
     }
 
     @PostConstruct
-    private void startBot() {
+    private void startService() {
         getPosts();
         sentMessages();
     }
@@ -160,8 +160,7 @@ public class DvachBot extends TelegramLongPollingBot {
     private void getPosts() {
         CompletableFuture.runAsync(() ->
         {
-            while (true) {
-                if (downloadsStatus) {
+            while (downloadsStatus) {
                     restartUpdate = false;
                     Catalog catalog = dvachRequests.getCatalog(board);
                     List<Thread> threads = catalog.getThreads();
@@ -203,7 +202,6 @@ public class DvachBot extends TelegramLongPollingBot {
                         log.warn("Interrupted! {0}", e);
                     }
                 }
-            }
         }).exceptionally(throwable -> {
             throwable.printStackTrace();
             return null;
@@ -213,8 +211,7 @@ public class DvachBot extends TelegramLongPollingBot {
 
     private void sentMessages() {
         CompletableFuture.runAsync(() -> {
-            while (true) {
-                if (downloadsStatus) {
+            while (downloadsStatus) {
                     TelegramPost telegramPost;
                     telegramPost = telegramPostArrayDeque.peekFirst();
                     if (telegramPost != null) {
@@ -255,7 +252,6 @@ public class DvachBot extends TelegramLongPollingBot {
                         SleepBySecond(10);
                     }
                 }
-            }
         }).exceptionally(throwable -> {
             throwable.printStackTrace();
             return null;

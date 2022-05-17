@@ -1,3 +1,7 @@
+target/
+/*.db
+/*.mp4
+/*.jpg
 HELP.md
 .gradle
 build/

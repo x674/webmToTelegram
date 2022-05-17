@@ -26,15 +26,18 @@ public class Converter {
 
     public Converter() {
         encoder = new Encoder();
-        String[] encoders = null;
+        String[] encoders;
+        // If availible Nvidia GPU
         try {
             encoders = encoder.getVideoEncoders();
+            if (encoders != null)
+                if (Arrays.stream(encoders).anyMatch(e -> e.contains("h264_nvenc")))
+                    VIDEO_ENCODER = "h264_nvenc";
         } catch (EncoderException e) {
             e.printStackTrace();
         }
-        // If availible Nvidia GPU
-        if (Arrays.stream(encoders).anyMatch(e -> e.contains("h264_nvenc")))
-            VIDEO_ENCODER = "h264_nvenc";
+
+
 
     }
 
@@ -53,17 +56,18 @@ public class Converter {
             return fileName.toFile();
         }
 
-        File target = null;
         try {
-            target = Files.createFile(fileName).toFile();
+            File target = Files.createFile(fileName).toFile();
             URL urlVideo = new URL(URLVideo);
             log.info("Start convert {}", urlVideo);
             encoder.encode(new MultimediaObject(urlVideo), target, attrs);
+            log.info("Converted to {}", target.getPath());
+            return target;
         } catch (EncoderException | IOException e){
             e.printStackTrace();
+            log.error(URLVideo, attrs);
+            log.error(attrs.toString());
         }
-
-        log.info("Converted to {}", target.getPath());
-        return target;
+        return null;
     }
 }
