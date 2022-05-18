@@ -14,11 +14,12 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 
 
 public class Converter {
-    public static final String PATH_SAVE = System.getProperty("user.dir") + File.separator;
+    //public static final String PATH_SAVE = System.getProperty("user.dir");
     private static final Logger log = LoggerFactory.getLogger(Converter.class);
     private Encoder encoder;
     String VIDEO_ENCODER = "libx264";
@@ -50,14 +51,15 @@ public class Converter {
         attrs.setAudioAttributes(audio);
         attrs.setVideoAttributes(video);
         // Out file
-        var fileName = Path.of(PATH_SAVE + URLVideo.substring(URLVideo.lastIndexOf("/") + 1) + ".mp4");
+        Path filePath = Paths.get(System.getProperty("user.dir"),URLVideo.substring(URLVideo.lastIndexOf("/") + 1) + ".mp4");// Path.of(PATH_SAVE + URLVideo.substring(URLVideo.lastIndexOf("/") + 1) + ".mp4");
 
-        if (Files.exists(fileName)) {
-            return fileName.toFile();
+        if (Files.exists(filePath)) {
+            return filePath.toFile();
         }
 
         try {
-            File target = Files.createFile(fileName).toFile();
+            Path path = Files.createFile(filePath);
+            File target = path.toFile();
             URL urlVideo = new URL(URLVideo);
             log.info("Start convert {}", urlVideo);
             encoder.encode(new MultimediaObject(urlVideo), target, attrs);

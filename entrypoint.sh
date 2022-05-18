@@ -1,1 +1,1 @@
-java -Xdebug -Xrunjdwp:transport=dt_socket,server=y,address=8000,suspend=n -jar /webmToTelegram-0.0.1-SNAPSHOT.jar
+java -agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:8000 -jar /webmToTelegram-0.0.1-SNAPSHOT.jar
