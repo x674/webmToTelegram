@@ -7,6 +7,8 @@ import java.nio.file.Path;
 import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.*;
 import java.util.regex.Pattern;
 
@@ -42,7 +44,9 @@ public class DvachBot extends TelegramLongPollingBot {
     private static final Logger log = LoggerFactory.getLogger(DvachBot.class);
     private String board = "b";
     private List<String> fileExtensions = Arrays.asList("webm", "mp4");
-    private List<String> threadFilterWords = Arrays.asList("webm", "mp4", "тикток", "тик-ток");
+
+    @Value("${dvach.threadFilterWords}")
+    private List<String> threadFilterWords;
     @Value("${bot.name}")
     private String username;
     @Value("${bot.token}")
@@ -56,7 +60,7 @@ public class DvachBot extends TelegramLongPollingBot {
     private boolean downloadsStatus = true;
     private boolean nowSetFilters = false;
     private CallbackQuery setFilterCallbackQuery;
-    private final ConcurrentLinkedDeque<TelegramPost> telegramPostArrayDeque = new ConcurrentLinkedDeque<>();
+    private final BlockingDeque<TelegramPost> telegramPostArrayDeque = new LinkedBlockingDeque<>();
     private boolean restartUpdate;
 
     public DvachBot(ApplicationContext applicationContext, MediaRepository mediaRepository, Requests dvachRequests) {
@@ -88,11 +92,11 @@ public class DvachBot extends TelegramLongPollingBot {
                     }
                 } else if (nowSetFilters) {
                     List<String> filterWords = Arrays.asList(message.getText().split(" "));
-                    //dvachRequests.setFilterWords(new ArrayList<>(filterWords));
+                    threadFilterWords = filterWords;
                     nowSetFilters = false;
                     DeleteMessage deleteMessage = new DeleteMessage(message.getChatId().toString(), message.getMessageId());
                     execute(deleteMessage);
-                    //execute(CallbackHandlers.OnSettedFilter(setFilterCallbackQuery, dvachRequests.getFilterWords()));
+                    execute(CallbackHandlers.OnSettedFilter(setFilterCallbackQuery, threadFilterWords));
                     return;
                 }
                 //When receiveing link to a thread, download it
@@ -112,40 +116,30 @@ public class DvachBot extends TelegramLongPollingBot {
                 else if (callbackCommand.contains("mainMenu"))
                     execute(CallbackHandlers.ReturnToMainMenu(callbackQuery));
 
-               else if (callbackCommand.contains("downloadAllThreads"))
-                   execute(CallbackHandlers.DownloadSettingsMessage(callbackQuery, downloadsStatus));
+                else if (callbackCommand.contains("downloadAllThreads"))
+                    execute(CallbackHandlers.DownloadSettingsMessage(callbackQuery, downloadsStatus));
 
-                else if (callbackCommand.contains("filterSettings"))
-                {
+                else if (callbackCommand.contains("filterSettings")) {
                     setFilterCallbackQuery = callbackQuery;
                     nowSetFilters = true;
                     execute(CallbackHandlers.filterSettingsMessage(callbackQuery, threadFilterWords));
+                } else if (callbackCommand.contains("toggleDownload")) {
+                    if (downloadsStatus) {
+                        toggleDownloadStatus(false);
+                        log.info("Stopped downloading");
+                    } else {
+                        toggleDownloadStatus(true);
+                        startService();
+                    }
+                    execute(CallbackHandlers.DownloadSettingsMessage(callbackQuery, downloadsStatus));
                 }
-
-                // else if (callbackCommand.contains("listThreads"))
-                //     execute(CallbackHandlers.ListThreadsMenu(callbackQuery,dvachRequests.getListImageBoardThreads()));
-
-               else if (callbackCommand.contains("toggleDownload"))
-               {
-                   if (downloadsStatus)
-                   {
-                    toggleDownloadStatus(false);
-                   }
-                   else
-                   {
-                    toggleDownloadStatus(true);
-                    startService();
-                   }
-                   execute(CallbackHandlers.DownloadSettingsMessage(callbackQuery, downloadsStatus));
-               }
             }
         } catch (TelegramApiException e) {
             e.printStackTrace();
         }
     }
 
-    private void toggleDownloadStatus(boolean status)
-    {
+    private void toggleDownloadStatus(boolean status) {
         downloadsStatus = status;
         if (!status)
             telegramPostArrayDeque.clear();
@@ -155,25 +149,27 @@ public class DvachBot extends TelegramLongPollingBot {
     private void startService() {
         getPosts();
         sentMessages();
+        log.info("Resume downloadings");
     }
 
     private void getPosts() {
         CompletableFuture.runAsync(() ->
         {
             while (downloadsStatus) {
-                    restartUpdate = false;
-                    Catalog catalog = dvachRequests.getCatalog(board);
-                    List<Thread> threads = catalog.getThreads();
-                    threads.stream()
-                            .filter(thread -> threadFilterWords.stream()
-                                    .anyMatch(filterWord -> Pattern.compile(filterWord, Pattern.CASE_INSENSITIVE).matcher(thread.getSubject()).find()))
-                            .forEach(thread ->
-                            {
+                restartUpdate = false;
+                Catalog catalog = dvachRequests.getCatalog(board);
+                List<Thread> threads = catalog.getThreads();
+                threads.stream()
+                        .filter(thread -> threadFilterWords.stream()
+                                .anyMatch(filterWord -> Pattern.compile(filterWord, Pattern.CASE_INSENSITIVE).matcher(thread.getSubject()).find()))
+                        .forEach(thread ->
+                        {
+                            if (downloadsStatus) {
                                 log.info("Check thread: {}", thread.getSubject());
                                 dvachRequests.getThreadPosts("b", thread.getNum()).getPosts().stream()
                                         .forEach(post -> {
                                             post.getFiles()
-                                                    .stream().filter(file ->fileExtensions.stream().anyMatch(extension -> file.getName().contains(extension)) && file.getSize() < 48800)
+                                                    .stream().filter(file -> fileExtensions.stream().anyMatch(extension -> file.getName().contains(extension)) && file.getSize() < 48800)
                                                     .forEach(file ->
                                                     {
                                                         var newPost = new TelegramPost(
@@ -182,11 +178,18 @@ public class DvachBot extends TelegramLongPollingBot {
                                                                 URLBuilder.buildPostURL(board, thread, post)
                                                         );
 
-                                                        if (!mediaRepository.existsById(file.getMd5()))
+                                                        if (!mediaRepository.existsById(file.getMd5()) && !telegramPostArrayDeque.contains(newPost)) {
                                                             mediaRepository.save(new MediaFile(file.getMd5(), file.getFullname()));
-
-                                                        if (!telegramPostArrayDeque.contains(newPost))
                                                             telegramPostArrayDeque.addLast(newPost);
+                                                            return;
+                                                        }
+
+                                                        if (mediaRepository.existsById(file.getMd5())) {
+                                                            var media = mediaRepository.findById(file.getMd5()).get();
+                                                            if (!media.isUploaded() && !telegramPostArrayDeque.contains(newPost)) {
+                                                                telegramPostArrayDeque.addLast(newPost);
+                                                            }
+                                                        }
                                                     });
                                         });
                                 log.info("Added new posts, current size {}", telegramPostArrayDeque.size());
@@ -195,13 +198,14 @@ public class DvachBot extends TelegramLongPollingBot {
                                 } catch (InterruptedException e) {
                                     log.warn("Interrupted! {0}", e);
                                 }
-                            });
-                    try {
-                        TimeUnit.SECONDS.sleep(30);
-                    } catch (InterruptedException e) {
-                        log.warn("Interrupted! {0}", e);
-                    }
+                            }
+                        });
+                try {
+                    TimeUnit.SECONDS.sleep(30);
+                } catch (InterruptedException e) {
+                    log.warn("Interrupted! {0}", e);
                 }
+            }
         }).exceptionally(throwable -> {
             throwable.printStackTrace();
             return null;
@@ -211,51 +215,87 @@ public class DvachBot extends TelegramLongPollingBot {
 
     private void sentMessages() {
         CompletableFuture.runAsync(() -> {
+            int retryCount = 0;
+            TelegramPost telegramPost = null;
             while (downloadsStatus) {
-                    TelegramPost telegramPost;
-                    telegramPost = telegramPostArrayDeque.peekFirst();
-                    if (telegramPost != null) {
-                        log.info("Post gotten");
-                        VideoThumbnail videoThumbnail = telegramPost.getVideoThumbnail();
-                        if (videoThumbnail.getUrlVideo().contains("webm")) {
-                            File filePath = converter.convertWebmToMP4(videoThumbnail.getUrlVideo());
-                            videoThumbnail.setUrlVideo(filePath.getAbsolutePath());
-                        }
-                        File thumbnail = Downloader.downloadFile(videoThumbnail.getUrlThumbnail());
-                        videoThumbnail.setUrlThumbnail(thumbnail.getAbsolutePath());
-
-                        log.info("Try send");
-                        executeAsync(sendVideo(telegramPost)).exceptionally(e -> {
-                            log.error(e.getMessage());
-                            if (e.getMessage().contains("Too Many Requests"))
-                                SleepBySecond(30);
-                            return null;
-                        }).join();
-                        MediaFile mediaFile = mediaRepository.findById(videoThumbnail.getMd5()).get();
-                        mediaFile.setUploaded(true);
-                        mediaRepository.save(mediaFile);
-                        telegramPostArrayDeque.remove(telegramPost);
-                        if (!videoThumbnail.getUrlVideo().contains("http"))
-                        {
-                            try {
-                                Files.delete(Path.of(videoThumbnail.getUrlVideo()));
-
-                            } catch (IOException e1) {
-                                e1.printStackTrace();
-                            }
-                        }
+                while (retryCount < 3) {
+                    if (Objects.isNull(telegramPost)) {
                         try {
-                            Files.delete(Path.of(videoThumbnail.getUrlThumbnail()));
-                        } catch (IOException e) {
+                            telegramPost = telegramPostArrayDeque.takeFirst();
+                            log.info("Post gotten");
+                        } catch (InterruptedException e) {
                             throw new RuntimeException(e);
                         }
-                        SleepBySecond(10);
                     }
+                    VideoThumbnail videoThumbnail = telegramPost.getVideoThumbnail();
+                    if (videoThumbnail.getUrlVideo().endsWith(".webm")) {
+                        Optional<File> convertedFile = converter.convertWebmToMP4(videoThumbnail.getUrlVideo());
+                        if (convertedFile.isPresent()) {
+                            File filePath = convertedFile.get();
+                            videoThumbnail.setUrlVideo(filePath.getAbsolutePath());
+                        } else {
+                            log.error("Convertion failed");
+                            retryCount++;
+                            break;
+                        }
+
+                    }
+                    if (videoThumbnail.getUrlThumbnail().contains("http")) {
+                        Optional<File> thumbnail = Downloader.downloadFile(videoThumbnail.getUrlThumbnail());
+                        if (thumbnail.isPresent()) {
+                            videoThumbnail.setUrlThumbnail(thumbnail.get().getAbsolutePath());
+                        } else {
+                            log.error("Thumbnail not found");
+                            retryCount++;
+                            break;
+                        }
+                    }
+                    log.info("Try send");
+                    try {
+                        SendVideo sendVideo = sendVideo(telegramPost);
+                        execute(sendVideo);
+                    } catch (TelegramApiException e) {
+                        e.printStackTrace();
+                        if (e.getMessage().contains("Too Many Requests"))
+                            SleepBySecond(30);
+                        retryCount++;
+                        break;
+                    }
+                    MediaFile mediaFile = mediaRepository.findById(videoThumbnail.getMd5()).get();
+                    mediaFile.setUploaded(true);
+                    mediaRepository.save(mediaFile);
+                    RemoveTempFiles(videoThumbnail);
+
+                    retryCount = 0;
+                    telegramPost = null;
+                    SleepBySecond(10);
                 }
+                if (retryCount >= 3) {
+                    RemoveTempFiles(telegramPost.getVideoThumbnail());
+                    telegramPost = null;
+                    retryCount = 0;
+                }
+            }
         }).exceptionally(throwable -> {
             throwable.printStackTrace();
             return null;
         });
+    }
+    private void RemoveTempFiles(VideoThumbnail videoThumbnail){
+        if (!videoThumbnail.getUrlVideo().contains("http")) {
+            try {
+                Files.delete(Path.of(videoThumbnail.getUrlVideo()));
+
+            } catch (IOException e1) {
+                e1.printStackTrace();
+            }
+        }
+        try {
+            if (Files.exists(Path.of(videoThumbnail.getUrlThumbnail())))
+                Files.delete(Path.of(videoThumbnail.getUrlThumbnail()));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     // TODO Extract
@@ -266,6 +306,7 @@ public class DvachBot extends TelegramLongPollingBot {
             e.printStackTrace();
         }
     }
+
     public SendVideo sendVideo(TelegramPost telegramPost) {
         SendVideo sendVideo = new SendVideo();
         sendVideo.setChatId(chatId);
@@ -276,15 +317,16 @@ public class DvachBot extends TelegramLongPollingBot {
         } else {
             inputVideo = new InputFile(new File(videoThumbnail.getUrlVideo()));
         }
+        sendVideo.setVideo(inputVideo);
         sendVideo.setThumb(new InputFile(new File(videoThumbnail.getUrlThumbnail())));
         sendVideo.setDuration(videoThumbnail.getDurationSecs());
         sendVideo.setHeight(videoThumbnail.getHeight());
         sendVideo.setWidth(videoThumbnail.getWidth());
-        sendVideo.setVideo(inputVideo);
+
         sendVideo.setSupportsStreaming(true);
         sendVideo.setParseMode(ParseMode.HTML);
         String caption = MessageFormat.format("<a href=\"{0}\">{1}</a>\n{2}",
-                telegramPost.getMessageURL(),telegramPost.getThreadName(),videoThumbnail.getFilename());
+                telegramPost.getMessageURL(), telegramPost.getThreadName(), videoThumbnail.getFilename());
         sendVideo.setCaption(caption);
 
         return sendVideo;

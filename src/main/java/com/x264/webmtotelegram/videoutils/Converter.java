@@ -16,10 +16,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Optional;
 
 
 public class Converter {
-    //public static final String PATH_SAVE = System.getProperty("user.dir");
     private static final Logger log = LoggerFactory.getLogger(Converter.class);
     private Encoder encoder;
     String VIDEO_ENCODER = "libx264";
@@ -42,7 +42,7 @@ public class Converter {
 
     }
 
-    public File convertWebmToMP4(String URLVideo) {
+    public Optional<File> convertWebmToMP4(String URLVideo) {
         AudioAttributes audio = new AudioAttributes();
         audio.setCodec(AUDIO_ENCODER);
         VideoAttributes video = new VideoAttributes();
@@ -54,7 +54,7 @@ public class Converter {
         Path filePath = Paths.get(System.getProperty("user.dir"),URLVideo.substring(URLVideo.lastIndexOf("/") + 1) + ".mp4");// Path.of(PATH_SAVE + URLVideo.substring(URLVideo.lastIndexOf("/") + 1) + ".mp4");
 
         if (Files.exists(filePath)) {
-            return filePath.toFile();
+            return Optional.of(filePath.toFile());
         }
 
         try {
@@ -64,12 +64,12 @@ public class Converter {
             log.info("Start convert {}", urlVideo);
             encoder.encode(new MultimediaObject(urlVideo), target, attrs);
             log.info("Converted to {}", target.getPath());
-            return target;
+            return Optional.of(filePath.toFile());
         } catch (EncoderException | IOException e){
             e.printStackTrace();
             log.error(URLVideo, attrs);
             log.error(attrs.toString());
         }
-        return null;
+        return Optional.empty();
     }
 }
