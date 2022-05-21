@@ -180,7 +180,6 @@ public class DvachBot extends TelegramLongPollingBot {
 
                                                         if (!mediaRepository.existsById(file.getMd5()) && !telegramPostArrayDeque.contains(newPost)) {
                                                             mediaRepository.save(new MediaFile(file.getMd5(), file.getFullname()));
-                                                            telegramPostArrayDeque.addLast(newPost);
                                                             return;
                                                         }
 
