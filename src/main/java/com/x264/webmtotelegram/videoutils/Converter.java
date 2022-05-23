@@ -30,7 +30,6 @@ public class Converter {
     private Encoder encoder;
     String VIDEO_ENCODER = "libx264";
     String AUDIO_ENCODER = "aac";
-    List<String> notSupportedCodec = Arrays.asList("isom");
 
     public Converter() {
         encoder = new Encoder();
@@ -56,7 +55,7 @@ public class Converter {
         try {
             var info = multimediaObject.getInfo();
             var major_brand = info.getMetadata().get("major_brand");
-            return notSupportedCodec.stream().anyMatch(codec -> Pattern.compile(codec, Pattern.CASE_INSENSITIVE).matcher(major_brand).find());
+            return major_brand.contains("mp42");
         } catch (EncoderException e) {
             throw new RuntimeException(e);
         }
