@@ -63,7 +63,7 @@ public class File {
     public void setFullname(String fullname) {
         this.fullname = fullname;
     }
-
+    @NotNull
     @JsonProperty("height")
     public Integer getHeight() {
         return height;
@@ -73,7 +73,7 @@ public class File {
     public void setHeight(Integer height) {
         this.height = height;
     }
-
+    @NotNull
     @JsonProperty("md5")
     public String getMd5() {
         return md5;
@@ -163,7 +163,7 @@ public class File {
     public void setType(long type) {
         this.type = type;
     }
-
+    @NotNull
     @JsonProperty("width")
     public Integer getWidth() {
         return width;
@@ -183,7 +183,7 @@ public class File {
     public void setDuration(String duration) {
         this.duration = duration;
     }
-
+    @NotNull
     @JsonProperty("duration_secs")
     public Integer getDurationSecs() {
         return durationSecs;

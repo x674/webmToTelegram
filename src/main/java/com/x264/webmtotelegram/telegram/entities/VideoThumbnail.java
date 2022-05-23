@@ -5,13 +5,17 @@ import com.x264.webmtotelegram.imageboard.dvach.rest.File;
 
 public class VideoThumbnail {
     public VideoThumbnail(File file) {
-        this.urlThumbnail = URLBuilder.buildThumbnailURL(file);
-        this.urlVideo = URLBuilder.buildMediaURL(file);
-        this.filename = file.getFullname();
-        this.durationSecs = file.getDurationSecs();
-        this.height = file.getHeight();
-        this.width = file.getWidth();
-        this.md5 = file.getMd5();
+        try {
+            this.urlThumbnail = URLBuilder.buildThumbnailURL(file);
+            this.urlVideo = URLBuilder.buildMediaURL(file);
+            this.filename = file.getFullname();
+            this.durationSecs = file.getDurationSecs();
+            this.height = file.getHeight();
+            this.width = file.getWidth();
+            this.md5 = file.getMd5();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private String urlVideo;

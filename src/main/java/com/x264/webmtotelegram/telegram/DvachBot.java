@@ -187,9 +187,7 @@ public class DvachBot extends TelegramLongPollingBot {
                                                 post.getFiles()
                                                         .stream()
                                                         .filter(file -> fileExtensions.stream()
-                                                                .anyMatch(extension -> Pattern
-                                                                        .compile(extension, Pattern.CASE_INSENSITIVE)
-                                                                        .matcher(file.getFullname()).find())
+                                                                .anyMatch(extension -> file.getFullname().toLowerCase().endsWith(extension))
                                                                 && file.getSize() < 100000)
                                                         .forEach(file -> {
                                                             var newPost = new TelegramPost(
@@ -255,7 +253,8 @@ public class DvachBot extends TelegramLongPollingBot {
                     VideoThumbnail videoThumbnail = telegramPost.getVideoThumbnail();
                     if (videoThumbnail.getUrlVideo().endsWith(".webm") ||
                             (videoThumbnail.getUrlVideo().contains("http")
-                                    && converter.CheckFileCodecs(videoThumbnail.getUrlVideo()))) {
+                                    ||
+                                    (converter.CheckFileCodecs(videoThumbnail.getUrlVideo()) && (videoThumbnail.getUrlVideo().contains("http"))))) {
                         Optional<File> convertedFile = converter.convertWebmToMP4(videoThumbnail.getUrlVideo());
                         if (convertedFile.isPresent()) {
                             File filePath = convertedFile.get();
@@ -305,6 +304,7 @@ public class DvachBot extends TelegramLongPollingBot {
             }
         }).exceptionally(throwable -> {
             throwable.printStackTrace();
+            return null;
         });
     }
 
