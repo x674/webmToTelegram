@@ -12,6 +12,9 @@ public class MediaFile {
     private String name;
     @Basic
     private boolean uploaded;
+    @Basic
+    @Column(columnDefinition = "boolean default false")
+    private boolean badFile;
 
     public MediaFile(String md5, String name) {
         this.md5 = md5;
@@ -44,5 +47,13 @@ public class MediaFile {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public boolean isBadFile() {
+        return badFile;
+    }
+
+    public void setBadFile(boolean badFile) {
+        this.badFile = badFile;
     }
 }

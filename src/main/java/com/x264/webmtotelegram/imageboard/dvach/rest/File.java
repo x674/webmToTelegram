@@ -2,6 +2,9 @@ package com.x264.webmtotelegram.imageboard.dvach.rest;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.Objects;
+import java.util.Optional;
+
 import javax.validation.constraints.NotNull;
 
 public class File {
@@ -35,7 +38,6 @@ public class File {
     @JsonProperty("duration")
     private String duration;
     @JsonProperty("duration_secs")
-    @NotNull
     private Integer durationSecs;
     @JsonProperty("install")
     private String install;
@@ -63,7 +65,6 @@ public class File {
     public void setFullname(String fullname) {
         this.fullname = fullname;
     }
-    @NotNull
     @JsonProperty("height")
     public Integer getHeight() {
         return height;
@@ -185,8 +186,10 @@ public class File {
     }
     @NotNull
     @JsonProperty("duration_secs")
-    public Integer getDurationSecs() {
-        return durationSecs;
+    public Optional<Integer> getDurationSecs() {
+        if (Objects.isNull(this.durationSecs))
+            return Optional.empty();
+        return Optional.of(this.durationSecs);
     }
 
     @JsonProperty("duration_secs")
