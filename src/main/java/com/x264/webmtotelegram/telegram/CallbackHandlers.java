@@ -1,5 +1,6 @@
 package com.x264.webmtotelegram.telegram;
 
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -11,11 +12,12 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 
 public class CallbackHandlers {
 
-    public static EditMessageText sendInlineKeyboardStatusService(CallbackQuery callbackQuery) {
+    public static EditMessageText sendInlineKeyboardStatusService(CallbackQuery callbackQuery, boolean statusService, int countMessages) {
         EditMessageText editMessageText = new EditMessageText();
         editMessageText.setMessageId(callbackQuery.getMessage().getMessageId());
         editMessageText.setChatId(callbackQuery.getMessage().getChatId().toString());
-        editMessageText.setText("Статус сервиса \r\nВремя работы \r\nТекущие задачи");
+        String messageFormat = MessageFormat.format("Статус сервиса: {0}\nСообщений в очереди: {1}", statusService ? "Выкачка запущена" : "Выкачка остановлена", countMessages);
+        editMessageText.setText(messageFormat);
 
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
 
@@ -23,9 +25,9 @@ public class CallbackHandlers {
         //Vertical rows
         List<InlineKeyboardButton> row1 = new ArrayList<>();
 
-        InlineKeyboardButton statusService = new InlineKeyboardButton("Вернуться назад");
-        statusService.setCallbackData("mainMenu");
-        row1.add(statusService);
+        InlineKeyboardButton followBack = new InlineKeyboardButton("Вернуться назад");
+        followBack.setCallbackData("mainMenu");
+        row1.add(followBack);
 
 
         keyboard.add(row1);
@@ -50,7 +52,7 @@ public class CallbackHandlers {
         EditMessageText editMessageText = new EditMessageText();
         editMessageText.setMessageId(callbackQuery.getMessage().getMessageId());
         editMessageText.setChatId(callbackQuery.getMessage().getChatId().toString());
-        String message =  "Установлены слова:\n"+ listFilter.stream().collect(Collectors.joining("\n"));
+        String message = "Установлены слова:\n" + listFilter.stream().collect(Collectors.joining("\n"));
         editMessageText.setText(message);
 
 
@@ -74,11 +76,11 @@ public class CallbackHandlers {
         editMessageText.setChatId(callbackQuery.getMessage().getChatId().toString());
         String message = "";
         if (listFilter.isEmpty())
-            message = "Ключевые слова не заданы\n"+
+            message = "Ключевые слова не заданы\n" +
                     "Отправь список ключевых слов, через запятую";
         else
-            message = "Текущие ключевые слова\n"+
-                    listFilter.stream().collect(Collectors.joining("\n"))+
+            message = "Текущие ключевые слова\n" +
+                    listFilter.stream().collect(Collectors.joining("\n")) +
                     "\nОтправь список ключевых слов, через запятую";
         editMessageText.setText(message);
 

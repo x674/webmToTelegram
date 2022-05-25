@@ -60,8 +60,6 @@ public class VideoThumbnail {
     }
 
     public Optional<Integer> getDurationSecs() {
-        if (Objects.isNull(this.durationSecs))
-            return Optional.empty();
         return Optional.of(this.durationSecs);
     }
 
