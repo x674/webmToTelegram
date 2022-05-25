@@ -85,9 +85,10 @@ public class Converter {
         video.setCodec(VIDEO_ENCODER);
         var multimediaInfo = GetMultimediaInfo(URLVideo);
         long duration = multimediaInfo.getDuration();
-        if (duration != 0){
-        Integer bitrate = Math.toIntExact(50 * 8192 / TimeUnit.MILLISECONDS.toSeconds(duration))*100;
+        if (duration >= 5000) {
+        Integer bitrate = Math.toIntExact((50 * 8192) / TimeUnit.MILLISECONDS.toSeconds(duration))*100;
         video.setBitRate(bitrate);
+    }
         EncodingAttributes attrs = new EncodingAttributes();
         attrs.setAudioAttributes(audio);
         attrs.setVideoAttributes(video);
@@ -114,7 +115,7 @@ public class Converter {
             log.error(URLVideo, attrs);
             log.error(attrs.toString());
         }
-    }
+    
         return Optional.empty();
     }
 }
