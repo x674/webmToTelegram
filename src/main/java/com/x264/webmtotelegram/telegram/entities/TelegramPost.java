@@ -26,9 +26,7 @@ public class TelegramPost {
         }
         TelegramPost telegramPost = (TelegramPost)o;
 
-        return telegramPost != null 
-            ?telegramPost.getVideoThumbnail().equals(videoThumbnail)
-            :telegramPost.getVideoThumbnail() == null;
+        return telegramPost.getVideoThumbnail().equals(videoThumbnail);
     }
 
     public VideoThumbnail getVideoThumbnail() {

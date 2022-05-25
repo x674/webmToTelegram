@@ -68,7 +68,7 @@ public class DvachBot extends TelegramLongPollingBot {
     private boolean restartUpdate;
 
     public DvachBot(ApplicationContext applicationContext, MediaRepository mediaRepository, Requests dvachRequests,
-            DvachProperties dvachProperties) {
+                    DvachProperties dvachProperties) {
         this.applicationContext = applicationContext;
         this.mediaRepository = mediaRepository;
         this.dvachRequests = dvachRequests;
@@ -119,7 +119,7 @@ public class DvachBot extends TelegramLongPollingBot {
                 String callbackCommand = callbackQuery.getData();
 
                 if (callbackCommand.contains("StatusService"))
-                    execute(CallbackHandlers.sendInlineKeyboardStatusService(callbackQuery));
+                    execute(CallbackHandlers.sendInlineKeyboardStatusService(callbackQuery, downloadsStatus, telegramPostArrayDeque.size()));
 
                 else if (callbackCommand.contains("mainMenu"))
                     execute(CallbackHandlers.ReturnToMainMenu(callbackQuery));
@@ -169,69 +169,72 @@ public class DvachBot extends TelegramLongPollingBot {
                 try {
                     restartUpdate = false;
                     dvachProperties.getBoards().keySet().forEach(board -> {
-                        Catalog catalog = dvachRequests.getCatalog(board);
-                        List<Thread> threads = catalog.getThreads();
+                        var catalog = dvachRequests.getCatalog(board);
+                        if (catalog.isPresent()) {
+                            List<Thread> threads = catalog.get().getThreads();
+                            threads.stream()
+                                    .filter(thread -> {
+                                        if (!dvachProperties.getBoards().get(board).getFilterWords().isEmpty()) {
+                                            return dvachProperties.getBoards().get(board).getFilterWords().stream()
+                                                    .anyMatch(
+                                                            filterWord -> Pattern
+                                                                    .compile(filterWord, Pattern.CASE_INSENSITIVE)
+                                                                    .matcher(thread.getSubject()).find());
+                                        } else
+                                            return true;
+                                    })
+                                    .forEach(thread -> {
+                                        if (downloadsStatus) {
+                                            log.info("Check thread: {}", thread.getSubject());
+                                            var threadPosts = dvachRequests.getThreadPosts(board, thread.getNum());
+                                            if (threadPosts.isPresent())
+                                                threadPosts.get().getPosts().stream()
+                                                        .forEach(post -> {
+                                                            post.getFiles()
+                                                                    .stream()
+                                                                    .filter(file -> fileExtensions.stream()
+                                                                            .anyMatch(extension -> file.getName()
+                                                                                    .toLowerCase().endsWith(extension))
+                                                                            && file.getSize() < 100000)
+                                                                    .forEach(file -> {
+                                                                        var newPost = new TelegramPost(
+                                                                                file,
+                                                                                thread.getSubject(),
+                                                                                URLBuilder.buildPostURL(board, thread, post));
 
-                        threads.stream()
-                                .filter(thread -> {
-                                    if (!dvachProperties.getBoards().get(board).getFilterWords().isEmpty()) {
-                                        return dvachProperties.getBoards().get(board).getFilterWords().stream()
-                                                .anyMatch(
-                                                        filterWord -> Pattern
-                                                                .compile(filterWord, Pattern.CASE_INSENSITIVE)
-                                                                .matcher(thread.getSubject()).find());
-                                    } else
-                                        return true;
-                                })
-                                .forEach(thread -> {
-                                    if (downloadsStatus) {
-                                        log.info("Check thread: {}", thread.getSubject());
-                                        dvachRequests.getThreadPosts(board, thread.getNum()).getPosts().stream()
-                                                .forEach(post -> {
-                                                    post.getFiles()
-                                                            .stream()
-                                                            .filter(file -> fileExtensions.stream()
-                                                                    .anyMatch(extension -> file.getName()
-                                                                            .toLowerCase().endsWith(extension))
-                                                                    && file.getSize() < 100000)
-                                                            .forEach(file -> {
-                                                                var newPost = new TelegramPost(
-                                                                        file,
-                                                                        thread.getSubject(),
-                                                                        URLBuilder.buildPostURL(board, thread, post));
+                                                                        if (!mediaRepository.existsById(file.getMd5())
+                                                                                && !telegramPostArrayDeque.contains(newPost)) {
+                                                                            mediaRepository.save(new MediaFile(file.getMd5(),
+                                                                                    file.getFullname()));
+                                                                            return;
+                                                                        }
 
-                                                                if (!mediaRepository.existsById(file.getMd5())
-                                                                        && !telegramPostArrayDeque.contains(newPost)) {
-                                                                    mediaRepository.save(new MediaFile(file.getMd5(),
-                                                                            file.getFullname()));
-                                                                    return;
-                                                                }
-
-                                                                if (mediaRepository.existsById(file.getMd5())) {
-                                                                    var media = mediaRepository.findById(file.getMd5())
-                                                                            .get();
-                                                                    if (!media.isUploaded() && !media.isBadFile()
-                                                                            && !telegramPostArrayDeque
+                                                                        if (mediaRepository.existsById(file.getMd5())) {
+                                                                            var media = mediaRepository.findById(file.getMd5())
+                                                                                    .get();
+                                                                            if (!media.isUploaded() && !media.isBadFile()
+                                                                                    && !telegramPostArrayDeque
                                                                                     .contains(newPost)) {
-                                                                        telegramPostArrayDeque.addLast(newPost);
-                                                                    }
-                                                                }
-                                                            });
-                                                });
-                                        log.info("Added new posts, current size {}", telegramPostArrayDeque.size());
-                                        try {
-                                            TimeUnit.SECONDS.sleep(3);
-                                        } catch (InterruptedException e) {
-                                            log.warn("Interrupted! {0}", e);
+                                                                                telegramPostArrayDeque.addLast(newPost);
+                                                                            }
+                                                                        }
+                                                                    });
+                                                        });
+                                            log.info("Added new posts, current size {}", telegramPostArrayDeque.size());
+                                            try {
+                                                TimeUnit.SECONDS.sleep(3);
+                                            } catch (InterruptedException e) {
+                                                log.warn("Interrupted! {0}", e);
+                                            }
                                         }
-                                    }
-                                });
-                        try {
-                            TimeUnit.SECONDS.sleep(30);
-                        } catch (InterruptedException e) {
-                            log.warn("Interrupted! {0}", e);
-                        }
+                                    });
+                            try {
+                                TimeUnit.SECONDS.sleep(30);
+                            } catch (InterruptedException e) {
+                                log.warn("Interrupted! {0}", e);
+                            }
 
+                        }
                     });
 
                 } catch (Exception e) {
