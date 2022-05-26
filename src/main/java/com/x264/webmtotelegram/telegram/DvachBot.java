@@ -3,6 +3,7 @@ package com.x264.webmtotelegram.telegram;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.MessageFormat;
@@ -43,6 +44,8 @@ import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+
+import ws.schild.jave.EncoderException;
 
 @Component
 public class DvachBot extends TelegramLongPollingBot {
@@ -252,67 +255,83 @@ public class DvachBot extends TelegramLongPollingBot {
             MediaFile mediaFile = null;
             VideoThumbnail videoThumbnail = null;
             while (downloadsStatus) {
-                try {
-                    while (retryCount < 3) {
-                        if (Objects.isNull(telegramPost)) {
+                while (retryCount < 3) {
+                    if (Objects.isNull(telegramPost)) {
+                        try {
                             telegramPost = telegramPostArrayDeque.takeFirst();
-                            videoThumbnail = telegramPost.getVideoThumbnail();
-                            mediaFile = mediaRepository.findById(videoThumbnail.getMd5()).get();
-                            log.info("Post gotten");
+                        } catch (InterruptedException e) {
+                            log.warn("Interrupted arrayDeque");
                         }
-                        if (videoThumbnail.getUrlVideo().endsWith(".webm") ||
-                                (videoThumbnail.getUrlVideo().startsWith("http"))
-                                        && converter.CheckFileCodecs(videoThumbnail.getUrlVideo())) {
-                            Optional<File> convertedFile = converter.convertWebmToMP4(videoThumbnail.getUrlVideo());
-                            if (convertedFile.isPresent()) {
-                                File filePath = convertedFile.get();
-                                videoThumbnail.setUrlVideo(filePath.getAbsolutePath());
-                            } else {
+                        videoThumbnail = telegramPost.getVideoThumbnail();
+                        mediaFile = mediaRepository.findById(videoThumbnail.getMd5()).get();
+                        log.info("Post gotten");
+                    }
+
+                    if (videoThumbnail.getUrlVideo().startsWith("http")) {
+
+                        if (videoThumbnail.getUrlVideo().endsWith(".webm")) {
+                            try {
+                                File convertedFile = converter.convertWebmToMP4(videoThumbnail.getUrlVideo());
+                                videoThumbnail.setUrlVideo(convertedFile.getAbsolutePath());
+                            } catch (IllegalArgumentException | IOException | EncoderException e) {
                                 log.error("Convertion failed");
                                 retryCount++;
                                 break;
                             }
 
-                        }
-                        if (videoThumbnail.getUrlThumbnail().contains("http")) {
-                            Optional<File> thumbnail = Downloader.downloadFile(videoThumbnail.getUrlThumbnail());
-                            if (thumbnail.isPresent()) {
-                                videoThumbnail.setUrlThumbnail(thumbnail.get().getAbsolutePath());
-                            } else {
-                                log.error("Thumbnail not found");
+                        } else if (videoThumbnail.getUrlVideo().endsWith(".mp4")) {
+                            try {
+                                boolean correctCodec = converter.CheckFileCodecs(videoThumbnail.getUrlVideo());
+                                if (!correctCodec) {
+                                    File convertedFile = converter.convertWebmToMP4(videoThumbnail.getUrlVideo());
+                                    videoThumbnail.setUrlVideo(convertedFile.getAbsolutePath());
+                                }
+                            } catch (EncoderException | IllegalArgumentException | IOException e) {
+                                log.error("Convertion failed");
                                 retryCount++;
                                 break;
                             }
                         }
-                        log.info("Try send");
+                    }
+                    if (videoThumbnail.getUrlThumbnail().contains("http")) {
+                        File thumbnail;
                         try {
-                            SendVideo sendVideo = sendVideo(telegramPost);
-                            execute(sendVideo);
-                        } catch (TelegramApiException e) {
-                            e.printStackTrace();
-                            if (e.getMessage().contains("Too Many Requests"))
-                                SleepBySecond(30);
+                            thumbnail = Downloader.downloadFile(videoThumbnail.getUrlThumbnail());
+                        } catch (IOException e) {
+                            log.error("Thumbnail download failed");
                             retryCount++;
                             break;
                         }
-                        mediaFile.setUploaded(true);
-                        mediaRepository.save(mediaFile);
-                        removeFilesFromVideoThumbnails(videoThumbnail);
+                        videoThumbnail.setUrlThumbnail(thumbnail.getAbsolutePath());
+                        
+                    }
+                    log.info("Try send");
+                    try {
+                        SendVideo sendVideo = sendVideo(telegramPost);
+                        execute(sendVideo);
+                    } catch (TelegramApiException e) {
+                        e.printStackTrace();
+                        if (e.getMessage().contains("Too Many Requests"))
+                            SleepBySecond(30);
+                        retryCount++;
+                        break;
+                    }
+                    mediaFile.setUploaded(true);
+                    mediaRepository.save(mediaFile);
+                    removeFilesFromVideoThumbnails(videoThumbnail);
 
-                        retryCount = 0;
-                        telegramPost = null;
-                        SleepBySecond(10);
-                    }
-                    if (retryCount >= 3) {
-                        mediaFile.setBadFile(true);
-                        mediaRepository.save(mediaFile);
-                        removeFilesFromVideoThumbnails(telegramPost.getVideoThumbnail());
-                        telegramPost = null;
-                        retryCount = 0;
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
+                    retryCount = 0;
+                    telegramPost = null;
+                    SleepBySecond(10);
                 }
+                if (retryCount >= 3) {
+                    mediaFile.setBadFile(true);
+                    mediaRepository.save(mediaFile);
+                    removeFilesFromVideoThumbnails(telegramPost.getVideoThumbnail());
+                    telegramPost = null;
+                    retryCount = 0;
+                }
+
             }
         });
     }

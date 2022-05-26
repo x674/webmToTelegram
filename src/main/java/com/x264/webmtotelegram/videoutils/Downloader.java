@@ -5,11 +5,8 @@ import org.apache.commons.io.FilenameUtils;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URI;
 import java.net.URL;
 import java.nio.file.Path;
-import java.util.Optional;
 
 public final class Downloader {
     private Downloader() {}
@@ -17,16 +14,11 @@ public final class Downloader {
     public static final String PATH_SAVE = System.getProperty("user.dir") + File.separator;
 
     //Return path to downloaded file
-    public static Optional<File> downloadFile(String urlString) {
+    public static File downloadFile(String urlString) throws IOException {
         Path fileName = Path.of(PATH_SAVE + FilenameUtils.getName(urlString));
         File file = fileName.toFile();
-        try {
-            URL url = new URL(urlString);
-            FileUtils.copyURLToFile(url, file);
-        } catch (IOException e) {
-            e.printStackTrace();
-            return Optional.empty();
-        }
-        return Optional.of(file);
+        URL url = new URL(urlString);
+        FileUtils.copyURLToFile(url, file);
+        return file;
     }
 }

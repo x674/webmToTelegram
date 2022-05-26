@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ws.schild.jave.Encoder;
 import ws.schild.jave.EncoderException;
+import ws.schild.jave.InputFormatException;
 import ws.schild.jave.MultimediaObject;
 import ws.schild.jave.encode.AudioAttributes;
 import ws.schild.jave.encode.EncodingAttributes;
@@ -19,7 +20,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 public class Converter {
@@ -42,80 +42,58 @@ public class Converter {
         }
     }
 
-    public boolean CheckFileCodecs(String url) {
+    public Boolean CheckFileCodecs(String url) throws MalformedURLException, InputFormatException, EncoderException {
         URL urlObj = null;
-        try {
-            urlObj = new URL(url);
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
+        urlObj = new URL(url);
         MultimediaObject multimediaObject = new MultimediaObject(urlObj);
-        try {
-            var info = multimediaObject.getInfo();
-            var major_brand = info.getMetadata().get("major_brand");
-            return major_brand.contains("mp42");
-        } catch (EncoderException e) {
-            throw new RuntimeException(e);
-        }
+        var info = multimediaObject.getInfo();
+        var major_brand = info.getMetadata().get("major_brand");
+        return major_brand.contains("mp42");
     }
 
-    public Optional<MultimediaInfo> GetMultimediaInfo(String url) {
+    public MultimediaInfo GetMultimediaInfo(String url)
+            throws InputFormatException, EncoderException, MalformedURLException {
         URL urlObj = null;
-        try {
-            urlObj = new URL(url);
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
+        urlObj = new URL(url);
         MultimediaObject multimediaObject = new MultimediaObject(urlObj);
-        try {
-            var info = multimediaObject.getInfo();
-            return Optional.of(info);
-        } catch (EncoderException e) {
-            e.printStackTrace();
-            return Optional.empty();
-        }
+        var info = multimediaObject.getInfo();
+        return info;
     }
 
-    public Optional<File> convertWebmToMP4(String URLVideo) {
+    public File convertWebmToMP4(String URLVideo) throws IOException, IllegalArgumentException, InputFormatException, EncoderException {
         AudioAttributes audio = new AudioAttributes();
         audio.setCodec(AUDIO_ENCODER);
         VideoAttributes video = new VideoAttributes();
         video.setCodec(VIDEO_ENCODER);
         video.setCodec(VIDEO_ENCODER);
         var multimediaInfo = GetMultimediaInfo(URLVideo);
-        if (multimediaInfo.isPresent()) {
-            long duration = multimediaInfo.get().getDuration();
-            if (duration >= 5000) {
-                Integer bitrate = Math.toIntExact((50 * 8192) / TimeUnit.MILLISECONDS.toSeconds(duration)) * 100;
-                video.setBitRate(bitrate);
-            }
-            EncodingAttributes attrs = new EncodingAttributes();
-            attrs.setAudioAttributes(audio);
-            attrs.setVideoAttributes(video);
-            HashMap<String, String> extraParams = new HashMap<>();
-            extraParams.put("-brand", "mp42");
-            attrs.setExtraContext(extraParams);
-            // Out file
-            Path filePath = Paths.get(System.getProperty("user.dir"), URLVideo.substring(URLVideo.lastIndexOf("/") + 1) + ".mp4");// Path.of(PATH_SAVE + URLVideo.substring(URLVideo.lastIndexOf("/") + 1) + ".mp4");
 
-            if (Files.exists(filePath)) {
-                return Optional.of(filePath.toFile());
-            }
-
-            try {
-                Path path = Files.createFile(filePath);
-                File target = path.toFile();
-                URL urlVideo = new URL(URLVideo);
-                log.info("Start convert {}", urlVideo);
-                encoder.encode(new MultimediaObject(urlVideo), target, attrs);
-                log.info("Converted to {}", target.getPath());
-                return Optional.of(filePath.toFile());
-            } catch (EncoderException | IOException e) {
-                e.printStackTrace();
-                log.error(URLVideo, attrs);
-                log.error(attrs.toString());
-            }
+        long duration = multimediaInfo.getDuration();
+        if (duration >= 5000) {
+            Integer bitrate = Math.toIntExact((50 * 8192) / TimeUnit.MILLISECONDS.toSeconds(duration)) * 100;
+            video.setBitRate(bitrate);
         }
-        return Optional.empty();
+        EncodingAttributes attrs = new EncodingAttributes();
+        attrs.setAudioAttributes(audio);
+        attrs.setVideoAttributes(video);
+        HashMap<String, String> extraParams = new HashMap<>();
+        extraParams.put("-brand", "mp42");
+        attrs.setExtraContext(extraParams);
+        // Out file
+        Path filePath = Paths.get(System.getProperty("user.dir"),
+                URLVideo.substring(URLVideo.lastIndexOf("/") + 1) + ".mp4");
+
+        if (Files.exists(filePath)) {
+            return filePath.toFile();
+        }
+
+        Path path = Files.createFile(filePath);
+        File target = path.toFile();
+        URL urlVideo = new URL(URLVideo);
+        log.info("Start convert {}", urlVideo);
+        encoder.encode(new MultimediaObject(urlVideo), target, attrs);
+        log.info("Converted to {}", target.getPath());
+        return filePath.toFile();
+        
     }
 }
