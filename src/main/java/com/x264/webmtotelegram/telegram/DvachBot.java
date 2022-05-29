@@ -38,9 +38,11 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.ParseMode;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
+import org.telegram.telegrambots.meta.api.objects.ChatMemberUpdated;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -117,7 +119,7 @@ public class DvachBot extends TelegramLongPollingBot {
                 }
 
             }
-            if (update.hasCallbackQuery()) {
+            else if (update.hasCallbackQuery()) {
                 CallbackQuery callbackQuery = update.getCallbackQuery();
                 String callbackCommand = callbackQuery.getData();
 
@@ -146,6 +148,12 @@ public class DvachBot extends TelegramLongPollingBot {
                         startService();
                     }
                     execute(CallbackHandlers.DownloadSettingsMessage(callbackQuery, downloadsStatus));
+                }
+            } else if (update.hasMyChatMember()) {
+                ChatMemberUpdated chatMember = update.getMyChatMember();
+                if (chatMember.getNewChatMember().getStatus().equals("administrator")) {
+                    execute(new SendMessage(chatMember.getChat().getId().toString(),
+                            MessageFormat.format("Welcome to \"{0}\"\nChat ID: {1}", chatMember.getChat().getTitle(), chatMember.getChat().getId().toString())));
                 }
             }
         } catch (TelegramApiException e) {

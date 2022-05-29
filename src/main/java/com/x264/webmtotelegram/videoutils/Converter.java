@@ -25,24 +25,24 @@ import java.util.concurrent.TimeUnit;
 public class Converter {
     private static final Logger log = LoggerFactory.getLogger(Converter.class);
     private Encoder encoder;
-    String VIDEO_ENCODER = "libx264";
+    String VIDEO_ENCODER = "libx265";
     String AUDIO_ENCODER = "aac";
 
     public Converter() {
         encoder = new Encoder();
         String[] encoders;
         // If availible Nvidia GPU
-        try {
-            encoders = encoder.getVideoEncoders();
-            if (encoders != null)
-                if (Arrays.stream(encoders).anyMatch(e -> e.contains("h264_nvenc")))
-                    VIDEO_ENCODER = "h264_nvenc";
-        } catch (EncoderException e) {
-            e.printStackTrace();
-        }
+//        try {
+//            encoders = encoder.getVideoEncoders();
+//            if (encoders != null)
+//                if (Arrays.stream(encoders).anyMatch(e -> e.contains("h264_nvenc")))
+//                    VIDEO_ENCODER = "h264_nvenc";
+//        } catch (EncoderException e) {
+//            e.printStackTrace();
+//        }
     }
 
-    public Boolean CheckFileCodecs(String url) throws MalformedURLException, InputFormatException, EncoderException {
+    public Boolean CheckFileCodecs(String url) throws MalformedURLException, EncoderException {
         URL urlObj = null;
         urlObj = new URL(url);
         MultimediaObject multimediaObject = new MultimediaObject(urlObj);
@@ -52,7 +52,7 @@ public class Converter {
     }
 
     public MultimediaInfo GetMultimediaInfo(String url)
-            throws InputFormatException, EncoderException, MalformedURLException {
+            throws  EncoderException, MalformedURLException {
         URL urlObj = null;
         urlObj = new URL(url);
         MultimediaObject multimediaObject = new MultimediaObject(urlObj);
@@ -60,7 +60,7 @@ public class Converter {
         return info;
     }
 
-    public File convertWebmToMP4(String URLVideo) throws IOException, IllegalArgumentException, InputFormatException, EncoderException {
+    public File convertWebmToMP4(String URLVideo) throws IOException, IllegalArgumentException, EncoderException {
         AudioAttributes audio = new AudioAttributes();
         audio.setCodec(AUDIO_ENCODER);
         VideoAttributes video = new VideoAttributes();
@@ -69,10 +69,11 @@ public class Converter {
         var multimediaInfo = GetMultimediaInfo(URLVideo);
 
         long duration = multimediaInfo.getDuration();
-        if (duration >= 5000) {
-            Integer bitrate = Math.toIntExact((50 * 8192) / TimeUnit.MILLISECONDS.toSeconds(duration)) * 100;
-            video.setBitRate(bitrate);
-        }
+//        if (duration >= 5000) {
+//            Integer bitrate = Math.toIntExact((50 * 8192) / TimeUnit.MILLISECONDS.toSeconds(duration)) * 100;
+//            video.setBitRate(bitrate);
+//        }
+        video.setQuality(24);
         EncodingAttributes attrs = new EncodingAttributes();
         attrs.setAudioAttributes(audio);
         attrs.setVideoAttributes(video);

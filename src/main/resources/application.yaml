@@ -1,3 +1,11 @@
+logging:
+  pattern:
+    file: "%d %p %c{1.} [%t] %m%n"
+  file:
+    name: app.log
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
 spring:
   jpa:
     generate-ddl: 'true'
