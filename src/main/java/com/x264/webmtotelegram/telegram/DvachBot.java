@@ -1,39 +1,18 @@
 package com.x264.webmtotelegram.telegram;
 
-import java.io.File;
-import java.io.FilenameFilter;
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.text.MessageFormat;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.*;
-import java.util.regex.Pattern;
-
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-
 import com.x264.webmtotelegram.DvachProperties;
 import com.x264.webmtotelegram.entities.MediaFile;
-import com.x264.webmtotelegram.imageboard.dvach.rest.Catalog;
+import com.x264.webmtotelegram.imageboard.dvach.Requests;
+import com.x264.webmtotelegram.imageboard.dvach.URLBuilder;
 import com.x264.webmtotelegram.imageboard.dvach.rest.Thread;
 import com.x264.webmtotelegram.repositories.MediaRepository;
 import com.x264.webmtotelegram.telegram.entities.TelegramPost;
 import com.x264.webmtotelegram.telegram.entities.VideoThumbnail;
 import com.x264.webmtotelegram.videoutils.Converter;
-import com.x264.webmtotelegram.imageboard.dvach.Requests;
-import com.x264.webmtotelegram.imageboard.dvach.URLBuilder;
-
 import com.x264.webmtotelegram.videoutils.Downloader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -46,16 +25,29 @@ import org.telegram.telegrambots.meta.api.objects.ChatMemberUpdated;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-
 import ws.schild.jave.EncoderException;
+
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.text.MessageFormat;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 @Component
 public class DvachBot extends TelegramLongPollingBot {
     private static final Logger log = LoggerFactory.getLogger(DvachBot.class);
-
-    private Map<String, List<String>> boards;
-    private List<String> fileExtensions = Arrays.asList("webm", "mp4", "mov");
-    private DvachProperties dvachProperties;
+    private final List<String> fileExtensions = Arrays.asList("webm", "mp4", "mov");
+    private final DvachProperties dvachProperties;
     @Value("${bot.name}")
     private String username;
     @Value("${bot.token}")
@@ -283,6 +275,7 @@ public class DvachBot extends TelegramLongPollingBot {
                                 videoThumbnail.setUrlVideo(convertedFile.getAbsolutePath());
                             } catch (IllegalArgumentException | IOException | EncoderException e) {
                                 log.error("Convertion failed");
+                                e.printStackTrace();
                                 retryCount++;
                                 break;
                             }
@@ -296,6 +289,7 @@ public class DvachBot extends TelegramLongPollingBot {
                                 }
                             } catch (EncoderException | IllegalArgumentException | IOException e) {
                                 log.error("Convertion failed");
+                                e.printStackTrace();
                                 retryCount++;
                                 break;
                             }
@@ -307,6 +301,7 @@ public class DvachBot extends TelegramLongPollingBot {
                             thumbnail = Downloader.downloadFile(videoThumbnail.getUrlThumbnail());
                         } catch (IOException e) {
                             log.error("Thumbnail download failed");
+                            e.printStackTrace();
                             retryCount++;
                             break;
                         }
@@ -365,7 +360,7 @@ public class DvachBot extends TelegramLongPollingBot {
     private void removeTempFiles() {
 
         File file = new File(System.getProperty("user.dir"));
-        File[] listFiles = file.listFiles((FilenameFilter) (dir, name) -> name.endsWith("jpg") || name.endsWith("mp4"));
+        File[] listFiles = file.listFiles((dir, name) -> name.endsWith("jpg") || name.endsWith("mp4"));
         for (File f : listFiles)
             f.delete();
     }
