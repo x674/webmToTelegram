@@ -45,6 +45,7 @@ public class Converter {
         attrs.setVideoAttributes(new VideoAttributes());
         HashMap<String, String> extraParams = new HashMap<>();
         extraParams.put("-brand", "mp42");
+        extraParams.put("-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2");
         attrs.setExtraContext(extraParams);
 
         Path filePath = Paths.get(System.getProperty("user.dir"),

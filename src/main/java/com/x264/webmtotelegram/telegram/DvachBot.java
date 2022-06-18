@@ -287,19 +287,6 @@ public class DvachBot extends TelegramLongPollingBot {
                                 break;
                             }
 
-                        } else if (videoThumbnail.getUrlVideo().endsWith(".mp4")) {
-                            try {
-                                boolean correctCodec = converter.CheckFileCodecs(videoThumbnail.getUrlVideo());
-                                if (!correctCodec) {
-                                    File convertedFile = converter.convertWebmToMP4(videoThumbnail.getUrlVideo());
-                                    videoThumbnail.setUrlVideo(convertedFile.getAbsolutePath());
-                                }
-                            } catch (EncoderException | IllegalArgumentException | IOException e) {
-                                log.error("Convertion failed");
-                                e.printStackTrace();
-                                retryCount++;
-                                break;
-                            }
                         }
                     }
                     if (videoThumbnail.getUrlThumbnail().contains("http")) {
@@ -313,7 +300,7 @@ public class DvachBot extends TelegramLongPollingBot {
                             break;
                         }
                         videoThumbnail.setUrlThumbnail(thumbnail.getAbsolutePath());
-                        
+
                     }
                     log.info("Try send");
                     try {
@@ -323,6 +310,19 @@ public class DvachBot extends TelegramLongPollingBot {
                         e.printStackTrace();
                         if (e.getMessage().contains("Too Many Requests"))
                             SleepBySecond(30);
+                        else if (e.getMessage().contains("Bad Request")) {
+                            if (videoThumbnail.getUrlVideo().startsWith("http") && videoThumbnail.getUrlVideo().endsWith(".mp4")) {
+                                try {
+                                    File convertedFile = converter.convertWebmToMP4(videoThumbnail.getUrlVideo());
+                                    videoThumbnail.setUrlVideo(convertedFile.getAbsolutePath());
+                                } catch (IllegalArgumentException | IOException | EncoderException convertException) {
+                                    log.error("Convertion failed");
+                                    convertException.printStackTrace();
+                                    retryCount++;
+                                    break;
+                                }
+                            }
+                        }
                         retryCount++;
                         break;
                     }
