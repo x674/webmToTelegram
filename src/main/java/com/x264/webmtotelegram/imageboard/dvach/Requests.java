@@ -9,11 +9,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.ExchangeStrategies;
 import org.springframework.web.reactive.function.client.WebClient;
-
-import java.util.Optional;
 
 @Component
 public class Requests {
@@ -29,26 +26,26 @@ public class Requests {
                 .build()).baseUrl(HOSTNAME).build();
     }
 
-    public Optional<Catalog> getCatalog(@NotNull String board) {
-        return Optional.ofNullable(webClient.get()
+    public Catalog getCatalog(@NotNull String board) {
+        return webClient.get()
                 .uri(uriBuilder -> uriBuilder.path("/{board}/catalog.json").build(board))
                 .retrieve()
                 .onStatus(HttpStatus::is4xxClientError, clientResponse -> {
                     log.error("Error while getting catalog: {}", clientResponse.statusCode());
                     return null;
                 })
-                .bodyToMono(Catalog.class).block());
+                .bodyToMono(Catalog.class).block();
     }
 
-    public Optional<ThreadPosts> getThreadPosts(@NotNull String board, @NotNull String numThread) {
-        return Optional.ofNullable(webClient.get()
+    public ThreadPosts getThreadPosts(@NotNull String board, @NotNull String numThread) {
+        return webClient.get()
                 .uri(uriBuilder -> uriBuilder.path("/{board}/res/{idThread}.json").build(board, numThread))
                 .retrieve()
                 .onStatus(HttpStatus::is4xxClientError, clientResponse -> {
                     log.error("Error while getting thread posts: {}", clientResponse.statusCode());
                     return null;
                 })
-                .bodyToMono(ThreadPosts.class).block());
+                .bodyToMono(ThreadPosts.class).block();
     }
-    
+
 }

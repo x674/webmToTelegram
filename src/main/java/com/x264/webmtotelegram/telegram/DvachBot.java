@@ -5,6 +5,7 @@ import com.x264.webmtotelegram.entities.MediaFile;
 import com.x264.webmtotelegram.imageboard.dvach.Requests;
 import com.x264.webmtotelegram.imageboard.dvach.URLBuilder;
 import com.x264.webmtotelegram.imageboard.dvach.rest.Thread;
+import com.x264.webmtotelegram.imageboard.dvach.rest.ThreadPosts;
 import com.x264.webmtotelegram.repositories.MediaRepository;
 import com.x264.webmtotelegram.telegram.entities.TelegramPost;
 import com.x264.webmtotelegram.telegram.entities.VideoThumbnail;
@@ -41,6 +42,7 @@ import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 @Component
@@ -163,7 +165,7 @@ public class DvachBot extends TelegramLongPollingBot {
     private void startService() {
         getPosts();
         sentMessages();
-        log.info("Resume downloadings");
+        log.info("Resume downloading");
     }
 
     private void getPosts() {
@@ -173,32 +175,23 @@ public class DvachBot extends TelegramLongPollingBot {
                     restartUpdate = false;
                     dvachProperties.getBoards().keySet().forEach(board -> {
                         var catalog = dvachRequests.getCatalog(board);
-                        if (catalog.isPresent()) {
-                            List<Thread> threads = catalog.get().getThreads();
+                        if (catalog != null) {
+                            List<Thread> threads = catalog.getThreads();
                             threads.stream()
-                                    .filter(thread -> {
-                                        if (!dvachProperties.getBoards().get(board).getFilterWords().isEmpty()) {
-                                            return dvachProperties.getBoards().get(board).getFilterWords().stream()
-                                                    .anyMatch(
-                                                            filterWord -> Pattern
-                                                                    .compile(filterWord, Pattern.CASE_INSENSITIVE)
-                                                                    .matcher(thread.getSubject()).find());
-                                        } else
-                                            return true;
-                                    })
+                                    .filter(getThreadPredicate(board))
                                     .forEach(thread -> {
                                         if (downloadsStatus) {
                                             log.info("Check thread: {}", thread.getSubject());
-                                            var threadPosts = dvachRequests.getThreadPosts(board, thread.getNum());
-                                            if (threadPosts.isPresent())
-                                                threadPosts.get().getPosts().stream()
+                                            ThreadPosts threadPosts = dvachRequests.getThreadPosts(board, thread.getNum());
+                                            if (threadPosts != null)
+                                                threadPosts.getPosts()
                                                         .forEach(post -> {
                                                             post.getFiles()
                                                                     .stream()
                                                                     .filter(file -> fileExtensions.stream()
                                                                             .anyMatch(extension -> file.getName()
                                                                                     .toLowerCase().endsWith(extension))
-                                                                            && file.getSize() < 100000)
+                                                                            && file.getSize() < 50000)
                                                                     .forEach(file -> {
                                                                         var newPost = new TelegramPost(
                                                                                 file,
@@ -246,6 +239,20 @@ public class DvachBot extends TelegramLongPollingBot {
                 }
             }
         });
+    }
+
+    private Predicate<Thread> getThreadPredicate(String board) {
+        return thread -> {
+            List<String> filterWords = dvachProperties.getBoards().get(board).getFilterWords();
+            List<String> ignoreWords = dvachProperties.getBoards().get(board).getIgnoreWords();
+            return (
+                    (filterWords.isEmpty() ||
+                            filterWords.stream()
+                                    .anyMatch(filterWord -> Pattern.compile(filterWord, Pattern.CASE_INSENSITIVE).matcher(thread.getSubject()).find()))
+                            &&
+                            (ignoreWords.isEmpty() || ignoreWords.stream()
+                                    .noneMatch(ignoreWord -> Pattern.compile(ignoreWord, Pattern.CASE_INSENSITIVE).matcher(thread.getSubject()).find())));
+        };
     }
 
     private void sentMessages() {
