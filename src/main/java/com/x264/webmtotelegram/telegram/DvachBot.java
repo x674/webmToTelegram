@@ -279,7 +279,13 @@ public class DvachBot extends TelegramLongPollingBot {
                         if (videoThumbnail.getUrlVideo().endsWith(".webm")) {
                             try {
                                 File convertedFile = converter.convertWebmToMP4(videoThumbnail.getUrlVideo());
-                                videoThumbnail.setUrlVideo(convertedFile.getAbsolutePath());
+                                if (convertedFile.length() < 50000000)
+                                    videoThumbnail.setUrlVideo(convertedFile.getAbsolutePath());
+                                else
+                                {
+                                    retryCount = 3;
+                                    break;
+                                }
                             } catch (IllegalArgumentException | IOException | EncoderException e) {
                                 log.error("Convertion failed");
                                 e.printStackTrace();
@@ -314,12 +320,13 @@ public class DvachBot extends TelegramLongPollingBot {
                             if (videoThumbnail.getUrlVideo().startsWith("http") && videoThumbnail.getUrlVideo().endsWith(".mp4")) {
                                 try {
                                     File convertedFile = converter.convertWebmToMP4(videoThumbnail.getUrlVideo());
-                                    videoThumbnail.setUrlVideo(convertedFile.getAbsolutePath());
+                                    if (convertedFile.length() < 50000000)
+                                        videoThumbnail.setUrlVideo(convertedFile.getAbsolutePath());
+                                    else
+                                        retryCount = 3;
                                 } catch (IllegalArgumentException | IOException | EncoderException convertException) {
                                     log.error("Convertion failed");
                                     convertException.printStackTrace();
-                                    retryCount++;
-                                    break;
                                 }
                             }
                         }
