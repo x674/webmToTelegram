@@ -43,7 +43,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
-import java.util.regex.Pattern;
 
 @Component
 public class DvachBot extends TelegramLongPollingBot {
@@ -248,10 +247,10 @@ public class DvachBot extends TelegramLongPollingBot {
             return (
                     (filterWords.isEmpty() ||
                             filterWords.stream()
-                                    .anyMatch(filterWord -> Pattern.compile(filterWord, Pattern.CASE_INSENSITIVE).matcher(thread.getSubject()).find()))
+                                    .anyMatch(filterWord -> thread.getSubject().toLowerCase().contains(filterWord.toLowerCase())))
                             &&
                             (ignoreWords.isEmpty() || ignoreWords.stream()
-                                    .noneMatch(ignoreWord -> Pattern.compile(ignoreWord, Pattern.CASE_INSENSITIVE).matcher(thread.getSubject()).find())));
+                                    .noneMatch(ignoreWord -> thread.getSubject().toLowerCase().contains(ignoreWord.toLowerCase()))));
         };
     }
 
